@@ -33,7 +33,7 @@ That's it! The script will guide you through the entire setup process.
 - **Google Cloud CLI** (`gcloud`) - Google Cloud Platform tools
 - **Node.js** (v20+) - JavaScript runtime via NVM
 - **Python** (v3.9+) - Python interpreter and pip
-- **Cursor Agent** - AI-powered code assistant
+- **Cursor Agent** - Command-line tool for Cursor AI agents
 - **Gemini CLI** - Google's Gemini AI command-line tool
 
 ### Authentication & Security
@@ -112,8 +112,8 @@ ENABLE_NODEJS=true
 NODEJS_MIN_VERSION=20
 
 # CLI Tools
-ENABLE_CURSOR_AGENT=true
-ENABLE_GEMINI_CLI=true
+ENABLE_CURSOR_AGENT=true  # Cursor Agent CLI tool
+ENABLE_GEMINI_CLI=true    # Command-line tool for Gemini AI
 
 # Environment Management
 ENABLE_ENV_SETUP=true
@@ -290,4 +290,4 @@ This project is for personal use. Feel free to adapt it for your own development
 
 ---
 
-**Note**: This script is specifically designed for ChromeOS development environments. While it may work on other Linux distributions, it's optimized for Crostini/gLinux VMs running on ChromeOS.
+**Note**: This script is specifically designed for ChromeOS development environments. While it may work on other Linux distributions, it's optimized for Crostini/gLinux VMs running on ChromeOS.hing 

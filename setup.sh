@@ -417,16 +417,16 @@ cd "$REPO_DIR" || {
 if [ "$ENABLE_CURSOR_AGENT" = "true" ]; then
     echo "Step 4: Cursor Agent Installation"
     
-    if npm list -g cursor-agent &> /dev/null; then
+    if command -v cursor-agent &> /dev/null; then
         echo "Cursor agent is already installed."
         log_step "Cursor Agent Installation" "VERIFIED"
     else
-        echo "Installing cursor-agent..."
-        if sudo npm install -g cursor-agent; then
+        echo "Installing Cursor agent..."
+        if curl https://cursor.com/install -fsSL | bash; then
             echo "Cursor agent installation complete."
             log_step "Cursor Agent Installation" "COMPLETED"
         else
-            echo "Failed to install cursor-agent."
+            echo "Failed to install Cursor agent."
             log_step "Cursor Agent Installation" "FAIL"
         fi
     fi
@@ -671,4 +671,4 @@ if [ "$has_issues" = false ]; then
     echo "• Add API keys to $ENV_FILE as needed"
 fi
 echo ""
-echo "================================================================"remove 
+echo "================================================================"remov
