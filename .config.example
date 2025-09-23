@@ -1,0 +1,22 @@
+# ChromeOS Development Environment Configuration
+# Copy this file to .env and customize as needed
+
+# Core Tools
+ENABLE_GITHUB_SETUP=true
+ENABLE_GOOGLE_CLOUD_CLI=true
+
+# Google Cloud Configuration
+# PROJECT_ID=your-gcp-project-id  # Required for secrets backup validation
+
+# Development Languages
+ENABLE_PYTHON=true
+PYTHON_MIN_VERSION=3.9  # Omit this line if ENABLE_PYTHON=false
+ENABLE_NODEJS=true
+NODEJS_MIN_VERSION=20   # Omit this line if ENABLE_NODEJS=false
+
+# CLI Tools
+ENABLE_CURSOR_AGENT=true
+ENABLE_GEMINI_CLI=true
+
+# Environment Management
+ENABLE_ENV_SETUP=true
