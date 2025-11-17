@@ -1,0 +1,84 @@
+#!/bin/bash
+
+# Source common test functions
+source "$(dirname "$0")/test-common.sh"
+
+echo "=== Running Test Case 3: Configuration from Global Config File ==="
+
+# --- Setup ---
+TEST_DIR="/tmp/devws_test_3"
+echo "Setting up test directory: $TEST_DIR"
+mkdir -p "$TEST_DIR"
+cd "$TEST_DIR"
+
+set_common_test_env "$TEST_DIR"
+
+# Ensure the temporary config file is clean
+rm -f "$WS_SYNC_CONFIG"
+# Ensure no existing .ws-sync file in the current directory
+rm -f ".ws-sync"
+
+# Identify project and bucket
+identify_project_id
+identify_bucket_name
+
+# Ensure no labels are present on the project and bucket from previous runs
+remove_gcs_labels "$YOUR_TEST_PROJECT_ID" "$YOUR_TEST_BUCKET_NAME"
+
+# Pre-configure the global config file
+echo "Pre-configuring global config file: $WS_SYNC_CONFIG"
+cat <<EOF > "$WS_SYNC_CONFIG"
+gcs_profiles:
+  default:
+    project_id: "$YOUR_TEST_PROJECT_ID"
+    bucket_name: "$YOUR_TEST_BUCKET_NAME"
+EOF
+
+echo "Setup complete for Test Case 3."
+
+# --- Execution ---
+echo "Executing devws cli setup command with no explicit arguments..."
+(cd "$PROJECT_ROOT" && python3 -m devws_cli.cli setup --component proj_local_config_sync)
+
+echo "Execution complete for Test Case 3."
+
+# --- Verification ---
+echo "Verifying results for Test Case 3..."
+
+# Verify that the temporary config file ($WS_SYNC_CONFIG) still contains the project_id and bucket_name under the default profile.
+echo "DEBUG: Verifying WS_SYNC_CONFIG: $WS_SYNC_CONFIG"
+ls -l "$WS_SYNC_CONFIG"
+
+if ! grep -q "project_id: $YOUR_TEST_PROJECT_ID" "$WS_SYNC_CONFIG" || \
+   ! grep -q "bucket_name: $YOUR_TEST_BUCKET_NAME" "$WS_SYNC_CONFIG"; then
+    echo "ERROR: Temporary config file ($WS_SYNC_CONFIG) does not contain expected project_id or bucket_name." >&2
+    cat "$WS_SYNC_CONFIG" >&2
+    exit 1
+fi
+echo "✅ Temporary config file ($WS_SYNC_CONFIG) contains expected project_id and bucket_name."
+
+# Verify that the project and bucket are labeled ws-sync-test-case=default.
+if ! gcloud projects describe "$YOUR_TEST_PROJECT_ID" --format="yaml(labels)" | grep -q "ws-sync-test-case: default"; then
+    echo "ERROR: Project $YOUR_TEST_PROJECT_ID is not labeled 'ws-sync-test-case: default'." >&2
+    exit 1
+fi
+echo "✅ Project $YOUR_TEST_PROJECT_ID is labeled 'ws-sync-test-case: default'."
+
+echo "DEBUG: gsutil label get output for bucket gs://$YOUR_TEST_BUCKET_NAME:"
+gsutil label get "gs://$YOUR_TEST_BUCKET_NAME"
+
+if ! gsutil label get "gs://$YOUR_TEST_BUCKET_NAME" | grep -q '"ws-sync-test-case": "default"'; then
+    echo "ERROR: Bucket gs://$YOUR_TEST_BUCKET_NAME is not labeled 'ws-sync-test-case: default'." >&2
+    exit 1
+fi
+echo "✅ Bucket gs://$YOUR_TEST_BUCKET_NAME is labeled 'ws-sync-test-case: default'."
+
+echo "Verification complete for Test Case 3."
+
+# --- Teardown ---
+echo "Cleaning up Test Case 3..."
+remove_gcs_labels "$YOUR_TEST_PROJECT_ID" "$YOUR_TEST_BUCKET_NAME"
+cleanup_test_dir "$TEST_DIR"
+unset_common_test_env
+
+echo "=== Test Case 3: PASSED ==="

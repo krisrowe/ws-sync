@@ -1,0 +1,34 @@
+# Example configuration for devws CLI
+#
+# This file defines the components and their configurations for your development workstation setup.
+# You can enable or disable specific components and customize their settings.
+
+components:
+  github:
+    enabled: true
+  google_cloud_cli:
+    enabled: true
+  python:
+    enabled: true
+    min_version: "3.9"
+  nodejs:
+    enabled: true
+    min_version: "20"
+  cursor_agent:
+    enabled: true
+  gemini_cli:
+    enabled: true
+  env_setup:
+    enabled: true
+  proj_local_config_sync:
+    enabled: true
+    local_sync_candidates:
+      - "*.env"
+      # Add other files/patterns to synchronize with GCS here
+      # Example:
+      # - "my_project_config.json"
+      # - "secrets/*.txt"
+    bucket_name: "" # Your Google Cloud Storage bucket name for synchronization
+
+# Global settings (not tied to a specific component)
+project_id: "" # Your Google Cloud Project ID (used for secrets backup validation)

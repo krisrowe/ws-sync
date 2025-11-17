@@ -1,101 +1,128 @@
-# ChromeOS Development Environment Setup
+# devws - ChromeOS Development Workstation Setup & Project Configuration CLI
 
-A comprehensive, idempotent setup script for ChromeOS development environments (Crostini/gLinux VMs). This script can be run repeatedly without issues to set up, extend, or repair your development environment.
+`devws` is a comprehensive command-line interface designed to streamline the setup of your ChromeOS development environment and manage project-specific configurations across multiple workstations. It unifies core workstation setup tasks with intelligent, project-scoped configuration synchronization.
 
 ## ✨ Features
 
-- **🔄 Idempotent**: Safe to run multiple times - detects existing installations
-- **🛠️ Self-healing**: Can repair broken or partially configured environments  
-- **🔐 Secure**: Uses standard `~/.env` file with Google Secrets Manager backup
-- **📊 Smart Reporting**: Detailed status reporting with clear next steps
-- **⚙️ Configurable**: Enable/disable features via `.config` file
-- **🚀 ChromeOS Optimized**: Specifically designed for ChromeOS development
+### Core Workstation Configuration (`devws` commands)
+- **🔄 Idempotent Setup**: `devws setup` can be run repeatedly to set up, extend, or repair your environment without issues.
+- **🔐 Secure Global .env Management**: `devws env backup` and `devws env restore` securely manage your global `~/.env` file using Google Secrets Manager.
+- **🛠️ Tool Installation**: Automates installation of essential CLIs (GitHub, Google Cloud, Cursor, Gemini) and language runtimes (Python, Node.js).
+- **⚙️ Configurable**: Customize setup via a `.config` file.
+
+### Project-Level Configuration Management (`devws local` commands)
+- **🚀 Project-Scoped Sync**: `devws local pull/push` synchronize project-specific, non-version-controlled files (like `.env` or local config) via Google Cloud Storage (GCS).
+- **🧠 Git-Aware**: Automatically identifies project context (owner/repo) from Git for GCS pathing.
+- **🛡️ .gitignore Integration**: Warns if managed files are not in `.gitignore` to prevent accidental commits of sensitive data.
+- **📊 Status Checks**: `devws local status` provides an overview of local vs. GCS file status.
 
 ## 🚀 Quick Start
 
-1. **Clone this repository:**
-   ```bash
-   git clone https://github.com/github-user/ws-sync.git
-   cd ws-sync
-   ```
-
-2. **Run the setup:**
-   ```bash
-   make setup
-   ```
-
-That's it! The script will guide you through the entire setup process.
-
-## 🛠️ What Gets Installed
-
-### Core Development Tools
-- **GitHub CLI** (`gh`) - Command-line interface for GitHub
-- **Google Cloud CLI** (`gcloud`) - Google Cloud Platform tools
-- **Node.js** (v20+) - JavaScript runtime via NVM
-- **Python** (v3.9+) - Python interpreter and pip
-- **Cursor Agent** - Command-line tool for Cursor AI agents
-- **Gemini CLI** - Google's Gemini AI command-line tool
-
-### Authentication & Security
-- **SSH Key Generation** - Ed25519 key pair for GitHub authentication
-- **GitHub Integration** - Automatic SSH key upload to GitHub
-- **SSH Agent Setup** - Persistent SSH authentication
-- **Environment Variables** - Secure `~/.env` file management
-
-### Configuration Management
-- **Shell Integration** - Automatic environment loading on startup
-- **Google Secrets Manager** - Cloud backup/restore for environment variables
-- **Configuration System** - Enable/disable features via `.config` file
+1.  **Clone this repository (for initial setup):**
+    ```bash
+    git clone https://github.com/github-user/ws-sync.git
+    cd ws-sync
+    ```
+2.  **Install the `devws` CLI:**
+    ```bash
+    pip install .
+    ```
+    *(Note: For a production-ready installation, you would typically install from PyPI: `pip install devws`)*
+3.  **Run the initial workstation setup:**
+    ```bash
+    devws setup
+    ```
+    This will guide you through setting up your core development environment.
 
 ## 📁 File Structure
 
 ```
 ws-sync/
-├── Makefile              # Build automation and shortcuts
-├── setup.sh              # Main setup script
-├── secrets.sh            # Google Secrets Manager backup/restore
-├── .config.example       # Configuration template
+├── devws_cli/            # Python package for the devws CLI
+│   ├── __init__.py
+│   ├── cli.py            # Main CLI entry point
+│   ├── setup_commands.py # Logic for 'devws setup'
+│   ├── env_commands.py   # Logic for 'devws env' group (backup/restore)
+│   ├── local_commands.py # Logic for 'devws local' group (pull/push/status/init)
+│   └── clean_commands.py # Logic for 'devws clean'
+├── archive/              # Historical files (e.g., original Makefiles, READMEs)
+├── .config.example       # Configuration template for 'devws setup'
 ├── env.example           # Environment variables template
-├── .gitignore           # Git ignore rules
-└── README.md            # This file
+├── .gitignore            # Git ignore rules for the devws repo itself
+├── MERGE-ANALYSIS.md     # Analysis of the merge process
+├── README.md             # This file
+├── setup.py              # Python package setup file
+├── ALT-DESIGN.md         # Alternative design considerations for workstation sync
+└── DESIGN.md             # Technical design document for workstation sync
 
-# External files (created by setup):
-~/.env                   # Your environment variables (gitignored)
-~/.config                # Your configuration file (gitignored)
+# External files (created by devws setup or local commands):
+~/.env                   # Your global environment variables (managed by 'devws env')
+~/.config                # Your configuration file for 'devws setup' (gitignored)
+./.ws-sync               # Project-specific files to manage (for 'devws local')
 ```
 
 ## 🎯 Usage
 
-### First Time Setup
-```bash
-git clone https://github.com/github-user/ws-sync.git
-cd ws-sync
-make setup
-```
+### 1. Core Workstation Configuration (`devws` commands)
 
-### Re-running Setup
-```bash
-cd ws-sync
-make setup
-```
+These commands manage your overall development workstation setup.
 
-The script intelligently detects what's already configured and only sets up missing components.
+*   **`devws setup`**: Run the full setup process for your ChromeOS development environment. It's idempotent and self-healing.
+    ```bash
+    devws setup [--force] [--config-path <path>]
+    ```
+    *   `--force`: Force re-run of setup steps, even if already verified.
+    *   `--config-path`: Specify a custom `.config` file.
 
-### Available Commands
-```bash
-make setup     # Run the full setup process
-make backup    # Backup ~/.env to Google Secrets Manager
-make restore   # Restore ~/.env from Google Secrets Manager
-make clean     # Clean up temporary files
-make help      # Show available commands
-```
+*   **`devws env backup`**: Backs up your global `~/.env` file to Google Secrets Manager.
+    ```bash
+    devws env backup
+    ```
+
+*   **`devws env restore`**: Restores your global `~/.env` file from Google Secrets Manager.
+    ```bash
+    devws env restore
+    ```
+
+*   **`devws clean`**: Cleans up temporary files (e.g., `*.backup.*`) across your workstation.
+    ```bash
+    devws clean
+    ```
+
+### 2. Project-Level Configuration Management (`devws local` commands)
+
+These commands manage project-specific, non-version-controlled files (like `.env` files for a particular project) using Google Cloud Storage (GCS). These commands should be run from within a Git repository.
+
+*   **`devws local init`**: Initializes a `.ws-sync` file in the current Git repository. This file defines which project-specific files are managed by `devws local`.
+    ```bash
+    devws local init [--profile <profile_name>]
+    ```
+    *   `--profile`: Specifies the GCS profile to use (e.g., `default`, `personal`, `work`).
+
+*   **`devws local pull`**: Pulls all files listed in `.ws-sync` from GCS to the local project directory.
+    ```bash
+    devws local pull [--profile <profile_name>] [--force]
+    ```
+    *   `--profile`: Specifies the GCS profile to use.
+    *   `--force`: Overwrite local changes if conflicts exist.
+
+*   **`devws local push`**: Pushes all files listed in `.ws-sync` from the local project directory to GCS.
+    ```bash
+    devws local push [--profile <profile_name>] [--force]
+    ```
+    *   `--profile`: Specifies the GCS profile to use.
+    *   `--force`: Overwrite GCS version if conflicts exist.
+
+*   **`devws local status`**: Shows the synchronization status of managed files (local vs. GCS) and checks against `.gitignore`.
+    ```bash
+    devws local status [--profile <profile_name>]
+    ```
+    *   `--profile`: Specifies the GCS profile to use.
 
 ## ⚙️ Configuration
 
-The setup script uses a configuration system to let you customize what gets installed:
-
-### Configuration File
-Copy `.config.example` to `.config` and customize:
+### Global Configuration (`.config`)
+The `devws setup` command uses a configuration system to let you customize what gets installed. Copy `.config.example` to `.config` in the repository root and customize:
 
 ```bash
 # Core Tools
@@ -119,170 +146,37 @@ ENABLE_GEMINI_CLI=true    # Command-line tool for Gemini AI
 ENABLE_ENV_SETUP=true
 ```
 
-### Environment Variables
-The script creates a `~/.env` file for your API keys and configuration:
+### Project-Specific Configuration (`.ws-sync`)
+For `devws local` commands, create a `.ws-sync` file in the root of your Git repository. This file lists the project-specific files you want to manage.
 
-```bash
-# Example ~/.env file
-export GEMINI_API_KEY="your-gemini-api-key-here"
-export CURSOR_API_KEY="your-cursor-api-key-here"
-export NODE_ENV="development"
-export DEBUG="true"
 ```
-
-## 🔐 Secrets Management
-
-### Local Environment File
-- **Location**: `~/.env` (standard location for shell environment variables)
-- **Purpose**: Store API keys, configuration, and environment variables
-- **Loading**: Automatically loaded on shell startup via `.bashrc`
-
-### Google Secrets Manager Integration
-Backup and restore your environment variables to/from Google Cloud:
-
-```bash
-# Backup your ~/.env to Google Secrets Manager
-make backup
-
-# Restore from Google Secrets Manager
-make restore
-```
-
-### Benefits
-- **Standard Convention**: Uses `~/.env` file that works with most tools
-- **Cloud Backup**: Secure backup/restore via Google Secrets Manager
-- **Repository Clean**: Environment variables stay outside the repository
-- **Cross-Project**: Works across multiple projects and repositories
-
-## 📊 Status Reporting
-
-The setup script provides detailed status reporting for each step:
-
-### Status Types
-- **✅ VERIFIED** - Found already done, no action taken
-- **✅ COMPLETED** - Just finished doing this step
-- **⏭️ SKIP** - Not applicable in this context
-- **🚫 DISABLED** - Intentionally excluded by configuration
-- **⚠️ PARTIAL** - Partially working, needs attention
-- **❌ FAIL** - Something went wrong
-
-### Example Output
-```
-================================================================
-SETUP REPORT
-================================================================
-STEP                                     STATUS
-----------------------------------------------------------------
-GitHub CLI Installation                  ✅ VERIFIED
-SSH Key Generation                       ✅ VERIFIED
-SSH Key GitHub Integration               ✅ VERIFIED
-Cursor Agent Installation                ✅ VERIFIED
-Gemini CLI Installation                  ✅ VERIFIED
-Python Installation                      ✅ VERIFIED
-Node.js Installation                     ✅ VERIFIED
-Environment File Detection               ✅ VERIFIED
-Secrets Backup Validation                ⏭️ SKIP
-----------------------------------------------------------------
-SUMMARY: 8 verified, 1 skipped
-================================================================
-```
-
-## 🔧 Troubleshooting
-
-### SSH Key Issues
-```bash
-# Check SSH agent status
-ssh-add -l
-
-# Add your key manually
-ssh-add ~/.ssh/id_ed25519
-
-# Test GitHub connection
-ssh -T git@github.com
-```
-
-### Node.js Issues
-```bash
-# Reload shell configuration
-source ~/.bashrc
-
-# Use specific Node.js version
-nvm use 20
-
-# Check Node.js installation
-node --version
-```
-
-### Environment Variables Not Loading
-```bash
-# Check if .env file exists
-ls -la ~/.env
-
-# Manually load for current session
-source ~/.env
-
-# Check if variables are loaded
-echo $GEMINI_API_KEY
-```
-
-### Google Cloud CLI Issues
-```bash
-# Check authentication
-gcloud auth list
-
-# Re-authenticate
-gcloud auth login
-
-# Check project configuration
-gcloud config get-value project
-```
-
-### Secrets Backup Issues
-```bash
-# Check if PROJECT_ID is set
-grep PROJECT_ID ~/.config
-
-# Set PROJECT_ID in .config
-echo "PROJECT_ID=your-project-id" >> ~/.config
-
-# Test backup
-make backup
+# This file specifies project-specific files that should be synchronized
+# across workstations for the same developer/user via the 'devws local' utility.
+#
+# IMPORTANT: All files listed here should also be included in your project's .gitignore
+# to prevent accidental version control of sensitive or local-only configurations.
+#
+# Example:
+# .env
+# my-local-config.json
+#
 ```
 
 ## 🎯 Prerequisites
 
-- **ChromeOS** with Linux development environment enabled (Crostini)
-- **Internet connection** for downloading tools and packages
-- **GitHub account** for SSH key setup and authentication
-- **Google Cloud account** (optional, for secrets backup)
-
-## 🔮 Future Enhancements
-
-### Advanced Features
-- **Docker Support** - Install and configure Docker for containerized development
-- **Additional CLIs** - AWS CLI, Azure CLI, kubectl, terraform
-- **Database Tools** - PostgreSQL, MySQL, MongoDB clients
-- **Code Quality** - ESLint, Prettier, Black, isort
-- **IDE Integration** - VS Code, IntelliJ, Vim/Neovim configurations
-
-### Environment Management
-- **Profile Switching** - Different configurations for different projects
-- **Dotfiles Management** - Automated management of shell configurations
-- **Health Checks** - Automated verification that all tools are working
-- **Update Notifications** - Notify when new versions are available
-
-### Security Enhancements
-- **Secrets Validation** - Verify that required API keys are present and valid
-- **Multiple Secrets Sources** - Support for loading from multiple files
-- **Encryption Options** - Additional encryption methods for sensitive data
+-   **ChromeOS** with Linux development environment enabled (Crostini)
+-   **Internet connection** for downloading tools and packages
+-   **GitHub account** (for SSH key setup and authentication)
+-   **Google Cloud account** (optional, for `devws env` and `devws local` functionality)
+-   **Python 3.7+** (for running the `devws` CLI)
 
 ## 🤝 Contributing
 
 This is a personal development environment setup. If you find issues or want to suggest improvements:
 
-1. **Create an issue** - Report bugs or request features
-2. **Fork and submit PR** - Contribute code improvements
-3. **Share feedback** - Let me know what works well or needs improvement
+1.  **Create an issue** - Report bugs or request features
+2.  **Fork and submit PR** - Contribute code improvements
+3.  **Share feedback** - Let me know what works well or needs improvement
 
 ## 📄 License
 
@@ -290,4 +184,4 @@ This project is for personal use. Feel free to adapt it for your own development
 
 ---
 
-**Note**: This script is specifically designed for ChromeOS development environments. While it may work on other Linux distributions, it's optimized for Crostini/gLinux VMs running on ChromeOS.hing 
+**Note**: This CLI is specifically designed for ChromeOS development environments. While it may work on other Linux distributions, it's optimized for Crostini/gLinux VMs running on ChromeOS.
