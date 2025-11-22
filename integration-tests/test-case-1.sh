@@ -29,7 +29,7 @@ echo "Setup complete for Test Case 1."
 
 # --- Execution ---
 echo "Executing devws cli setup command..."
-(cd "$PROJECT_ROOT" && python3 -m devws_cli.cli setup --component proj_local_config_sync)
+(cd "$PROJECT_ROOT" && PYTHONPATH="$PROJECT_ROOT:$PYTHONPATH" python3 -m devws_cli.cli setup --component proj_local_config_sync)
 
 echo "Execution complete for Test Case 1."
 

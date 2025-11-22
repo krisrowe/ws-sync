@@ -1,7 +1,7 @@
 import click
 import sys
 from devws_cli.utils import _log_step, _load_global_config
-from devws_cli.managers.locals_manager import LocalsManager
+from devws_cli.gcs_profile_manager import GCSProfileManager  # Updated import
 
 def setup(config):
     """
@@ -16,14 +16,14 @@ def setup(config):
     # Reload global config as it might have been updated by _configure_gcs_sync
     global_config, actual_global_config_file = _load_global_config()
 
-    locals_manager = LocalsManager() # Instantiate LocalsManager
+    gcs_profile_manager = GCSProfileManager()  # Use GCSProfileManager instead
     
     # Get project_id, bucket_name, and profile from component config (which might be overridden by CLI args)
     arg_project_id = config.get("project_id")
     arg_bucket_name = config.get("bucket_name")
     profile_name = config.get("profile", "default") # Default to 'default' if not provided
 
-    updated_global_config, success, messages, error_message = locals_manager.configure_gcs_sync(arg_project_id, arg_bucket_name, profile_name, global_config, actual_global_config_file)
+    updated_global_config, success, messages, error_message = gcs_profile_manager.configure_gcs_sync(arg_project_id, arg_bucket_name, profile_name, global_config, actual_global_config_file)
     
     for msg in messages:
         click.echo(msg)
