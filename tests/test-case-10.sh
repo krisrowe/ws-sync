@@ -87,7 +87,7 @@ echo "Verifying results for Test Case 10..."
 
 # Verify ASCII output
 echo "Verifying ASCII output..."
-if ! echo "$ASCII_OUTPUT" | grep -q "file_exists_local_and_gcs_same.txt.*Present.*Present.*No.*Skip (Local Exists)"; then
+if ! echo "$ASCII_OUTPUT" | grep -q "file_exists_local_and_gcs_same.txt.*Present (Same).*Present.*No.*Skip (Local Exists)"; then
     echo "ERROR: ASCII output missing or incorrect for file_exists_local_and_gcs_same.txt" >&2
     exit 1
 fi
@@ -122,7 +122,7 @@ import sys
 json_data = json.loads(sys.stdin.read())
 
 expected_results = {
-    'file_exists_local_and_gcs_same.txt': {'local_status': 'Present', 'gcs_status': 'Present', 'ignored_by_gitignore': 'No', 'action': 'Skip (Local Exists)'},
+    'file_exists_local_and_gcs_same.txt': {'local_status': 'Present (Same)', 'gcs_status': 'Present', 'ignored_by_gitignore': 'No', 'action': 'Skip (Local Exists)'},
     'file_exists_local_and_gcs_diff.txt': {'local_status': 'Present (Different)', 'gcs_status': 'Present', 'ignored_by_gitignore': 'No', 'action': 'Skip (Local Exists)'},
     'file_exists_local_only.txt': {'local_status': 'Present', 'gcs_status': 'Not Present', 'ignored_by_gitignore': 'No', 'action': 'No GCS counterpart'},
     'file_exists_gcs_only.txt': {'local_status': 'Not Present', 'gcs_status': 'Present', 'ignored_by_gitignore': 'No', 'action': 'Pull'},

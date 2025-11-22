@@ -82,18 +82,37 @@ def _is_ignored(file_path, gitignore_patterns):
             return True
     return False
 
-def _get_file_hash(file_path):
-    """Calculates the SHA256 hash of a file."""
+def _get_file_hash(file_path, algorithm='md5'):
+    """Calculates the hash of a file.
+    
+    Args:
+        file_path: Path to the file
+        algorithm: Hash algorithm to use ('md5' or 'sha256')
+    
+    Returns:
+        Base64-encoded hash for MD5 (to match GCS format), hex for SHA256
+    """
     if not os.path.exists(file_path):
         return None
-    hasher = hashlib.sha256()
+    
+    if algorithm == 'md5':
+        hasher = hashlib.md5()
+    else:
+        hasher = hashlib.sha256()
+    
     with open(file_path, 'rb') as f:
         while True:
             chunk = f.read(4096)
             if not chunk:
                 break
             hasher.update(chunk)
-    return hasher.hexdigest()
+    
+    # Return base64-encoded hash for MD5 to match GCS format
+    if algorithm == 'md5':
+        import base64
+        return base64.b64encode(hasher.digest()).decode('utf-8')
+    else:
+        return hasher.hexdigest()
 
 
 def _get_gcs_file_status(gcs_object_path):
@@ -126,27 +145,39 @@ def _get_gcs_file_status(gcs_object_path):
     except subprocess.CalledProcessError:
         pass # Not a directory, or empty directory, proceed to check if it's a file
 
-    # If not identified as a directory, try to get file metadata
+    # If not identified as a directory, try to get file metadata using gcloud storage
     try:
-        command_file_check = ['gsutil', 'ls', '-L', gcs_object_path]
+        # Use gcloud storage objects describe --format=json for structured output
+        command_file_check = ['gcloud', 'storage', 'objects', 'describe', gcs_object_path, '--format=json']
         result_file_check = _run_command(command_file_check, capture_output=True, check=True)
         output = result_file_check.stdout
 
-        status = "Present"        
-        file_type = "File" # Confirmed to be a file at this point
-
-        # Parse output for metadata
-        for line in output.splitlines():
-            if line.startswith('  Update time:'):
-                metadata['last_modified_timestamp'] = line.split(':', 1)[1].strip()
-            elif line.startswith('  Content-MD5:'):
-                metadata['md5_hash'] = line.split(':', 1)[1].strip()
-
-        return {
-            "status": status,
-            "type": file_type,
-            "metadata": metadata
-        }
+        # Parse JSON output
+        import json as json_module
+        try:
+            obj = json_module.loads(output)
+            status = "Present"
+            file_type = "File"
+            
+            # Extract metadata from JSON (md5_hash is at top level)
+            if 'update_time' in obj:
+                metadata['last_modified_timestamp'] = obj['update_time']
+            if 'md5_hash' in obj:
+                # md5_hash is already base64-encoded in GCS
+                metadata['md5_hash'] = obj['md5_hash']
+            
+            return {
+                "status": status,
+                "type": file_type,
+                "metadata": metadata
+            }
+        except json_module.JSONDecodeError as e:
+            click.echo(f"❌ Error parsing JSON from gcloud storage objects describe: {e}", err=True)
+            return {
+                "status": "Unknown Error",
+                "type": "N/A",
+                "metadata": {}
+            }
     except subprocess.CalledProcessError as e:
         # If both directory check and file check failed, then it's not present.
         # This covers cases where gsutil ls -L returns "No URLs matched".
@@ -190,8 +221,8 @@ def _get_local_file_status(local_file_path):
                 # Get last modified timestamp
                 mtime = os.path.getmtime(local_file_path)
                 metadata['last_modified_timestamp'] = datetime.fromtimestamp(mtime).isoformat()
-                # Get SHA256 hash for files
-                metadata['sha256_hash'] = _get_file_hash(local_file_path)
+                # Get MD5 hash for files (base64-encoded to match GCS format)
+                metadata['md5_hash'] = _get_file_hash(local_file_path, algorithm='md5')
             except Exception as e:
                 click.echo(f"❌ Error getting local file metadata for {local_file_path}: {e}", err=True)
                 # Continue without metadata if error occurs
@@ -352,19 +383,18 @@ def _get_dry_run_results(managed_files, base_gcs_path, gitignore_patterns, local
         local_status_str = local_file_status['status']
         if local_file_status['status'] == "Present" and local_file_status['type'] == "File":
             if gcs_file_status['status'] == "Present" and gcs_file_status['type'] == "File":
-                # Compare hashes for content difference
-                local_hash = local_file_status['metadata'].get('sha256_hash')
-                gcs_hash = gcs_file_status['metadata'].get('md5_hash') # GCS provides MD5, local provides SHA256. This is a potential mismatch.
-                                                                        # For now, if local is a file and GCS is a file, we assume different unless a better comparison is implemented.
-                # TODO: Implement a consistent hashing strategy or direct content comparison for true 'Same/Different'
-                # For now, if both exist and are files, and hashes are available, compare them.
-                # Note: GCS etag is MD5 (base64 encoded), local is SHA256. Direct comparison is not possible.
-                # A more robust solution would involve fetching GCS content or calculating MD5 locally.
-                local_status_str = "Present (Different)" # Default to different if hashes don't match or cannot be compared directly
-                if local_hash and gcs_hash: # If both hashes are available, we can't directly compare SHA256 and MD5.
-                                            # For the dry-run, we can indicate they are both present and would require a pull.
-                    pass # Keep as "Present (Different)" or add a specific state.
-
+                # Compare MD5 hashes for content difference
+                local_hash = local_file_status['metadata'].get('md5_hash')
+                gcs_hash = gcs_file_status['metadata'].get('md5_hash')
+                
+                if local_hash and gcs_hash:
+                    if local_hash == gcs_hash:
+                        local_status_str = "Present (Same)"
+                    else:
+                        local_status_str = "Present (Different)"
+                else:
+                    # If we can't get hashes, assume different to be safe
+                    local_status_str = "Present (Different)"
             else:
                 local_status_str = "Present"
         elif local_file_status['status'] == "Present" and local_file_status['type'] == "Directory":
