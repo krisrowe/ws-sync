@@ -7,8 +7,8 @@ import re # For regex in _get_git_repo_info
 from devws_cli.utils import _run_command, _get_ws_sync_label_key, _load_global_config, GLOBAL_DEVWS_CONFIG_FILE
 
 class LocalsManager:
-    def __init__(self):
-        pass
+    def __init__(self, silent=False):
+        self.silent = silent
 
     def _apply_label_to_project(self, project_id, profile_name):
         """Applies ws-sync label to a project."""
@@ -318,7 +318,7 @@ class LocalsManager:
         Retrieves project_id and bucket_name for a given profile from global config.
         Returns (project_id, bucket_name) or (None, None) if not found.
         """
-        global_config, _ = _load_global_config()
+        global_config, _ = _load_global_config(silent=self.silent)
         
         gcs_profiles = global_config.get('gcs_profiles', {})
         profile_config = gcs_profiles.get(profile_name, {})

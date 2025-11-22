@@ -6,6 +6,9 @@ import hashlib # For file content hashing
 import glob # For glob pattern matching
 import yaml # For YAML parsing/dumping
 import json # For parsing gcloud output
+import subprocess
+import sys # Added this line
+from datetime import datetime # For handling timestamps
 from devws_cli.utils import _run_command, _load_global_config, GLOBAL_DEVWS_CONFIG_FILE
 from devws_cli.managers.locals_manager import LocalsManager
 
@@ -36,7 +39,6 @@ def _get_managed_files():
     with open(ws_sync_path, 'r') as f:
         for line in f:
             line = line.strip()
-            line = line.rstrip('/') # Remove trailing slash for consistent GCS paths
             if line and not line.startswith('#'):
                 managed_files.append(line)
     return managed_files
@@ -92,6 +94,161 @@ def _get_file_hash(file_path):
                 break
             hasher.update(chunk)
     return hasher.hexdigest()
+
+
+def _get_gcs_file_status(gcs_object_path):
+    """
+    Determines the existence, type (file/directory), and relevant metadata
+    of a given path in Google Cloud Storage.
+
+    Args:
+        gcs_object_path (str): The full gs:// path to the GCS object or prefix.
+
+    Returns:
+        dict: A dictionary with 'status', 'type', and 'metadata'.
+              metadata includes 'last_modified_timestamp' (ISO format) and 'md5_hash'.
+    """
+    status = "Not Present"
+    file_type = "N/A"
+    metadata = {}
+
+    # First, try to see if it's a directory (prefix) by listing contents
+    try:
+        command_dir_check = ['gsutil', 'ls', f'{gcs_object_path.rstrip("/")}/**']
+        result_dir_check = _run_command(command_dir_check, capture_output=True, check=True)
+        if result_dir_check.stdout.strip():
+            # If listing contents succeeds and returns output, it's a directory
+            return {
+                "status": "Present",
+                "type": "Directory",
+                "metadata": {}
+            }
+    except subprocess.CalledProcessError:
+        pass # Not a directory, or empty directory, proceed to check if it's a file
+
+    # If not identified as a directory, try to get file metadata
+    try:
+        command_file_check = ['gsutil', 'ls', '-L', gcs_object_path]
+        result_file_check = _run_command(command_file_check, capture_output=True, check=True)
+        output = result_file_check.stdout
+
+        status = "Present"        
+        file_type = "File" # Confirmed to be a file at this point
+
+        # Parse output for metadata
+        for line in output.splitlines():
+            if line.startswith('  Update time:'):
+                metadata['last_modified_timestamp'] = line.split(':', 1)[1].strip()
+            elif line.startswith('  Content-MD5:'):
+                metadata['md5_hash'] = line.split(':', 1)[1].strip()
+
+        return {
+            "status": status,
+            "type": file_type,
+            "metadata": metadata
+        }
+    except subprocess.CalledProcessError as e:
+        # If both directory check and file check failed, then it's not present.
+        # This covers cases where gsutil ls -L returns "No URLs matched".
+        return {
+            "status": "Not Present",
+            "type": "N/A",
+            "metadata": {}
+        }
+    except Exception as e:
+        # Catch any other unexpected errors
+        click.echo(f"❌ Unexpected error getting GCS status for {gcs_object_path}: {e}", err=True)
+        return {
+            "status": "Unknown Error",
+            "type": "N/A",
+            "metadata": {}
+        }
+
+def _get_local_file_status(local_file_path):
+    """
+    Determines the existence, type (file/directory), and relevant metadata
+    of a given path on the local filesystem.
+
+    Args:
+        local_file_path (str): The full path to the local file or directory.
+
+    Returns:
+        dict: A dictionary with 'status', 'type', and 'metadata'.
+              metadata includes 'last_modified_timestamp' (ISO format) and 'sha256_hash'.
+    """
+    status = "Not Present"
+    file_type = "N/A"
+    metadata = {}
+
+    if os.path.exists(local_file_path):
+        status = "Present"
+        if os.path.isdir(local_file_path):
+            file_type = "Directory"
+        elif os.path.isfile(local_file_path):
+            file_type = "File"
+            try:
+                # Get last modified timestamp
+                mtime = os.path.getmtime(local_file_path)
+                metadata['last_modified_timestamp'] = datetime.fromtimestamp(mtime).isoformat()
+                # Get SHA256 hash for files
+                metadata['sha256_hash'] = _get_file_hash(local_file_path)
+            except Exception as e:
+                click.echo(f"❌ Error getting local file metadata for {local_file_path}: {e}", err=True)
+                # Continue without metadata if error occurs
+        
+    return {
+        "status": status,
+        "type": file_type,
+        "metadata": metadata
+    }
+
+def _generate_ascii_table(data):
+    """
+    Generates a human-readable ASCII table from a list of dictionaries.
+
+    Args:
+        data (list[dict]): A list of dictionaries, where each dictionary represents a row.
+                           All dictionaries are expected to have the same keys.
+
+    Returns:
+        str: The ASCII table as a string.
+    """
+    if not data:
+        return "No data to display."
+
+    # Define columns and their display names
+    columns = [
+        ("file_pattern", "File Pattern"),
+        ("local_status", "Local Status"),
+        ("gcs_status", "GCS Status"),
+        ("ignored_by_gitignore", "Ignored by .gitignore"),
+        ("action", "Action")
+    ]
+    
+    headers = [col_display for _, col_display in columns]
+
+    # Calculate maximum column widths
+    column_widths = {key: len(display_name) for key, display_name in columns}
+    for row in data:
+        for key, _ in columns:
+            column_widths[key] = max(column_widths[key], len(str(row.get(key, ''))))
+    
+    # Build the header row
+    header_line = " | ".join(headers[i].ljust(column_widths[columns[i][0]]) for i in range(len(columns)))
+    
+    # Build the separator line
+    separator_line = "-+-".join("-" * column_widths[col_key] for col_key, _ in columns)
+
+    table_rows = [header_line, separator_line]
+
+    # Build data rows
+    for row in data:
+        row_values = []
+        for key, _ in columns:
+            row_values.append(str(row.get(key, '')).ljust(column_widths[key]))
+        table_rows.append(" | ".join(row_values))
+
+    return "\n".join(table_rows)
 
 
 @click.group()
@@ -177,13 +334,93 @@ def init():
         click.echo(f"❌ Error creating '{WS_SYNC_FILE}': {e}", err=True)
         sys.exit(1)
 
+def _get_dry_run_results(managed_files, base_gcs_path, gitignore_patterns, local_repo_path, force):
+    """
+    Generates dry run results for the pull command.
+    """
+    dry_run_results = []
+
+    for file_pattern in managed_files:
+        local_file_path = os.path.join(local_repo_path, file_pattern)
+        gcs_object_path = f"{base_gcs_path}/{file_pattern}"
+        
+        # Get local and GCS file status
+        local_file_status = _get_local_file_status(local_file_path)
+        gcs_file_status = _get_gcs_file_status(gcs_object_path)
+
+        # Determine actual local status string for display
+        local_status_str = local_file_status['status']
+        if local_file_status['status'] == "Present" and local_file_status['type'] == "File":
+            if gcs_file_status['status'] == "Present" and gcs_file_status['type'] == "File":
+                # Compare hashes for content difference
+                local_hash = local_file_status['metadata'].get('sha256_hash')
+                gcs_hash = gcs_file_status['metadata'].get('md5_hash') # GCS provides MD5, local provides SHA256. This is a potential mismatch.
+                                                                        # For now, if local is a file and GCS is a file, we assume different unless a better comparison is implemented.
+                # TODO: Implement a consistent hashing strategy or direct content comparison for true 'Same/Different'
+                # For now, if both exist and are files, and hashes are available, compare them.
+                # Note: GCS etag is MD5 (base64 encoded), local is SHA256. Direct comparison is not possible.
+                # A more robust solution would involve fetching GCS content or calculating MD5 locally.
+                local_status_str = "Present (Different)" # Default to different if hashes don't match or cannot be compared directly
+                if local_hash and gcs_hash: # If both hashes are available, we can't directly compare SHA256 and MD5.
+                                            # For the dry-run, we can indicate they are both present and would require a pull.
+                    pass # Keep as "Present (Different)" or add a specific state.
+
+            else:
+                local_status_str = "Present"
+        elif local_file_status['status'] == "Present" and local_file_status['type'] == "Directory":
+            local_status_str = "Present (Dir)"
+
+
+        # Determine Action
+        action = "None"
+        ignored_by_gitignore = "Yes" if _is_ignored(file_pattern, gitignore_patterns) else "No"
+        
+        if ignored_by_gitignore == "Yes":
+            action = "Skip (Ignored)"
+        elif gcs_file_status['status'] == "Present" and gcs_file_status['type'] == "File":
+            if local_file_status['status'] == "Present" and local_file_status['type'] == "File":
+                # If both exist and are files, and force is not used, skip.
+                # If force is used, it would overwrite.
+                if force:
+                    action = "Overwrite"
+                else:
+                    action = "Skip (Local Exists)"
+            elif local_file_status['status'] == "Present" and local_file_status['type'] == "Directory":
+                action = "Conflict (GCS file, local dir)"
+            else: # Local not present or not a file
+                action = "Pull"
+        elif gcs_file_status['status'] == "Present" and gcs_file_status['type'] == "Directory":
+            if local_file_status['status'] == "Present" and local_file_status['type'] == "File":
+                action = "Conflict (GCS dir, local file)"
+            else:
+                action = "Sync Directory" # Indicates that contents under this prefix would be synced.
+        else: # GCS Not Present or Unknown Error
+            if local_file_status['status'] == "Present":
+                action = "No GCS counterpart"
+            else:
+                action = "Neither exists"
+
+        dry_run_results.append({
+            "file_pattern": file_pattern,
+            "local_status": local_status_str,
+            "gcs_status": gcs_file_status['status'],
+            "ignored_by_gitignore": ignored_by_gitignore,
+            "action": action,
+            "local_details": local_file_status,
+            "gcs_details": gcs_file_status
+        })
+    
+    return dry_run_results
+
 @local.command()
 @click.option('--force', is_flag=True, help='Overwrite local changes if conflicts exist.')
-def pull(force):
+@click.option('--dry-run', is_flag=True, help='Perform a dry run without actually pulling files, showing what would happen.')
+@click.option('--json', 'json_output', is_flag=True, help='Output dry run results as JSON.')
+def pull(force, dry_run, json_output):
     """
     Pulls all files listed in .ws-sync from GCS to the local project directory.
     """
-    locals_manager = LocalsManager()
+    locals_manager = LocalsManager(silent=json_output)
     owner, repo_name = locals_manager.get_git_repo_info()
     if not owner or not repo_name:
         sys.exit(1)
@@ -201,6 +438,30 @@ def pull(force):
         sys.exit(0)
 
     base_gcs_path = f"{bucket_url}/projects/{owner}/{repo_name}"
+    
+    if dry_run:
+        if not json_output: # Only echo if not JSON output
+            click.echo(f"ℹ️ Performing dry run for project '{owner}/{repo_name}' from GCS bucket '{bucket_url}'...")
+        
+        gitignore_patterns = _get_gitignore_patterns()
+        local_repo_path = _get_local_repo_path()
+
+        dry_run_results = _get_dry_run_results(
+            managed_files=managed_files,
+            base_gcs_path=base_gcs_path,
+            gitignore_patterns=gitignore_patterns,
+            local_repo_path=local_repo_path,
+            force=force
+        )
+        
+        if json_output:
+            print(json.dumps(dry_run_results, indent=2))
+        else:
+            click.echo(_generate_ascii_table(dry_run_results))
+        
+        return # Exit after dry run
+
+    # Original pull logic (only if not dry_run)
     click.echo(f"ℹ️ Pulling files for project '{owner}/{repo_name}' from GCS bucket '{bucket_url}'...")
 
     local_repo_path = _get_local_repo_path()

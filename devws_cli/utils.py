@@ -299,7 +299,7 @@ def _validate_secrets_manager_backup(repo_config):
 # Removed _get_gcs_config and _find_labeled_gcs_resources
 # Removed _gcs_cp and _get_git_repo_info (these were not used in setup_commands.py directly)
 
-def _load_global_config():
+def _load_global_config(silent=False):
     """
     Loads global devws configuration from ~/.config/devws/config.yaml or from WS_SYNC_CONFIG env var.
     Returns a dictionary of config values with defaults.
@@ -311,7 +311,8 @@ def _load_global_config():
 
     # Determine the actual global config file path, respecting WS_SYNC_CONFIG env var
     actual_global_config_file = os.environ.get("WS_SYNC_CONFIG", GLOBAL_DEVWS_CONFIG_FILE)
-    click.echo(f"DEBUG: Using global config file: {actual_global_config_file}")
+    if not silent:
+        click.echo(f"DEBUG: Using global config file: {actual_global_config_file}")
 
     if os.path.exists(actual_global_config_file):
         try:

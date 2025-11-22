@@ -7,32 +7,19 @@ echo "=== Running Test Case 4: Local Pull Functionality ==="
 
 # --- Setup ---
 TEST_DIR="/tmp/devws_test_4"
-echo "Setting up test directory: $TEST_DIR"
-mkdir -p "$TEST_DIR"
-cd "$TEST_DIR"
+REPO_DIR="$TEST_DIR/test_repo"
 
-set_common_test_env "$TEST_DIR"
-
-# Ensure the temporary config file is clean
-rm -f "$WS_SYNC_CONFIG"
-# Ensure no existing .ws-sync file in the current directory
-rm -f ".ws-sync"
+setup_test_environment "$TEST_DIR" "$REPO_DIR"
 
 # Identify project and bucket
 identify_project_id
 identify_bucket_name
 
-# Ensure no labels are present on the project and bucket from previous runs
-remove_gcs_labels "$YOUR_TEST_PROJECT_ID" "$YOUR_TEST_BUCKET_NAME"
+# Configure GCS test profile by directly writing to WS_SYNC_CONFIG
+configure_gcs_test_config "$YOUR_TEST_PROJECT_ID" "$YOUR_TEST_BUCKET_NAME" "$WS_SYNC_CONFIG"
 
-# Pre-configure the global config file with test resources
-echo "Pre-configuring global config file: $WS_SYNC_CONFIG"
-cat <<EOF > "$WS_SYNC_CONFIG"
-gcs_profiles:
-  default:
-    project_id: "$YOUR_TEST_PROJECT_ID"
-    bucket_name: "$YOUR_TEST_BUCKET_NAME"
-EOF
+# Construct GCS_REPO_PATH using the new common function
+GCS_REPO_PATH=$(get_test_gcs_path_prefix "$YOUR_TEST_BUCKET_NAME")
 
 # Create a dummy .gitignore file
 echo "Creating .gitignore file..."
@@ -41,13 +28,21 @@ cat <<EOF > .gitignore
 # Other ignored files
 EOF
 
-# Create a .ws-sync file with the name of a file to pull
+# Create a .ws-sync file with the name of a file and a folder to pull
 echo "Creating .ws-sync file..."
-echo ".env" > .ws-sync
+cat <<EOF > .ws-sync
+.env
+my_restored_folder/
+EOF
 
 # Manually upload a file to the GCS bucket
 echo "Manually uploading .env to GCS..."
-echo "Content from GCS." | gsutil cp - "gs://$YOUR_TEST_BUCKET_NAME/projects/github-user/ws-sync/.env"
+echo "Content from GCS." | gsutil cp - "$GCS_REPO_PATH/.env"
+
+# Manually upload a file inside a folder to GCS
+echo "Manually uploading my_restored_folder/restored_file.txt to GCS..."
+mkdir -p my_restored_folder # Ensure local folder exists for push
+echo "Folder content from GCS." | gsutil cp - "$GCS_REPO_PATH/my_restored_folder/restored_file.txt"
 
 echo "Setup complete for Test Case 4."
 
@@ -56,32 +51,55 @@ echo "Verifying .env does NOT exist locally..."
 if [ -f ".env" ]; then
     rm .env
 fi
+echo "Verifying my_restored_folder does NOT exist locally..."
+if [ -d "my_restored_folder" ]; then
+    rm -rf my_restored_folder
+fi
 
 echo "Executing devws cli local pull command..."
-(cd "$PROJECT_ROOT" && python3 -m devws_cli.cli local pull)
+PYTHONPATH="$PROJECT_ROOT" python3 -m devws_cli.cli local pull
 
 echo "Execution complete for Test Case 4."
 
 # --- Verification ---
 echo "Verifying results for Test Case 4..."
 
-# Verify the file now exists locally and its content matches the GCS version
-LOCAL_CONTENT=$(cat .env)
-EXPECTED_CONTENT="Content from GCS."
+# Verify the .env file
+LOCAL_CONTENT_ENV=$(cat .env)
+EXPECTED_CONTENT_ENV="Content from GCS."
 
-if [ "$LOCAL_CONTENT" != "$EXPECTED_CONTENT" ]; then
+if [ "$LOCAL_CONTENT_ENV" != "$EXPECTED_CONTENT_ENV" ]; then
     echo "ERROR: Content of .env locally does not match GCS content." >&2
-    echo "Local Content: $LOCAL_CONTENT" >&2
-    echo "Expected Content: $EXPECTED_CONTENT" >&2
+    echo "Local Content: $LOCAL_CONTENT_ENV" >&2
+    echo "Expected Content: $EXPECTED_CONTENT_ENV" >&2
     exit 1
 fi
 echo "✅ Content of .env locally matches GCS content."
+
+# Verify the restored folder and its file
+if [ ! -d "my_restored_folder" ]; then
+    echo "ERROR: Directory 'my_restored_folder' was not restored." >&2
+    exit 1
+fi
+echo "✅ Directory 'my_restored_folder' was restored."
+
+LOCAL_CONTENT_FOLDER=$(cat my_restored_folder/restored_file.txt)
+EXPECTED_CONTENT_FOLDER="Folder content from GCS."
+
+if [ "$LOCAL_CONTENT_FOLDER" != "$EXPECTED_CONTENT_FOLDER" ]; then
+    echo "ERROR: Content of my_restored_folder/restored_file.txt locally does not match GCS content." >&2
+    echo "Local Content: $LOCAL_CONTENT_FOLDER" >&2
+    echo "Expected Content: $EXPECTED_CONTENT_FOLDER" >&2
+    exit 1
+fi
+echo "✅ Content of my_restored_folder/restored_file.txt locally matches GCS content."
 
 echo "Verification complete for Test Case 4."
 
 # --- Teardown ---
 echo "Cleaning up Test Case 4..."
-gsutil rm "gs://$YOUR_TEST_BUCKET_NAME/projects/github-user/ws-sync/.env"
+gsutil rm "$GCS_REPO_PATH/.env" > /dev/null 2>&1 || true
+gsutil -m rm -r "$GCS_REPO_PATH/my_restored_folder/" > /dev/null 2>&1 || true
 cleanup_test_dir "$TEST_DIR"
 unset_common_test_env
 

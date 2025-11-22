@@ -87,6 +87,56 @@ remove_gcs_labels() {
     gsutil label ch -d ws-sync-test-case "gs://$BUCKET_NAME" || true # Ignore errors if label doesn't exist
 }
 
+# Function to setup the base test environment including a dummy git repo and basic devws config
+setup_test_environment() {
+    local TEST_DIR="$1"
+    local REPO_DIR="$2"
+
+    echo "Setting up test directory: $TEST_DIR"
+    rm -rf "$TEST_DIR" # Ensure clean slate
+    mkdir -p "$REPO_DIR"
+    cd "$REPO_DIR"
+
+    set_common_test_env "$REPO_DIR" # Sets WS_SYNC_CONFIG, DEVWS_WS_SYNC_LABEL_KEY, PROJ_LOCAL_CONFIG_SYNC_PATH
+
+    # Ensure the temporary config file is clean
+    rm -f "$WS_SYNC_CONFIG"
+    # Ensure no existing .ws-sync file in the current directory
+    rm -f ".ws-sync"
+
+    # Create a dummy Git repository
+    git init > /dev/null
+    git config user.email "test@example.com"
+    git config user.name "Test User"
+    touch initial.txt
+    git add .
+    git commit -m "Initial commit" > /dev/null
+    git remote add origin https://github.com/test_user/test_repo.git > /dev/null 2>&1 # Add dummy remote
+}
+
+# Function to configure the GCS test profile by directly writing to WS_SYNC_CONFIG
+configure_gcs_test_config() {
+    local PROJECT_ID="$1"
+    local BUCKET_NAME="$2"
+    local WS_SYNC_CONFIG="$3"
+
+    echo "Pre-configuring test GCS profile in config file: $WS_SYNC_CONFIG"
+    cat <<EOF > "$WS_SYNC_CONFIG"
+gcs_profiles:
+  default:
+    project_id: "$PROJECT_ID"
+    bucket_name: "$BUCKET_NAME"
+EOF
+}
+
+# Function to get the GCS path prefix for the test repository
+get_test_gcs_path_prefix() {
+    local BUCKET_NAME="$1"
+    local OWNER="test_user" # Hardcoded to match dummy git remote
+    local REPO_NAME="test_repo" # Hardcoded to match dummy git remote
+    echo "gs://$BUCKET_NAME/projects/$OWNER/$REPO_NAME"
+}
+
 # Function to run a command in the test directory
 run_in_test_dir() {
     local TEST_DIR="$1"
