@@ -565,7 +565,15 @@ def pull(force, dry_run, json_output, debug):
     # Display summary table
     if pull_results:
         click.echo("\n📊 Pull Summary:")
-        click.echo(_generate_ascii_table(pull_results))
+        # Format results for display
+        summary_data = []
+        for result in pull_results:
+            summary_data.append({
+                "File": result["file_pattern"],
+                "Status": result["status"],
+                "Action": result["action"]
+            })
+        click.echo(_generate_ascii_table(summary_data))
 
 @local.command()
 @click.option('--force', is_flag=True, help='Overwrite GCS version if conflicts exist.')
