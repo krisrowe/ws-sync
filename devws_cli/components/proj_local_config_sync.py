@@ -22,8 +22,9 @@ def setup(config):
     arg_project_id = config.get("project_id")
     arg_bucket_name = config.get("bucket_name")
     profile_name = config.get("profile", "default") # Default to 'default' if not provided
+    dry_run = config.get("dry_run", False)  # Get dry_run flag
 
-    updated_global_config, success, messages, error_message = gcs_profile_manager.configure_gcs_sync(arg_project_id, arg_bucket_name, profile_name, global_config, actual_global_config_file)
+    updated_global_config, success, messages, error_message = gcs_profile_manager.configure_gcs_sync(arg_project_id, arg_bucket_name, profile_name, global_config, actual_global_config_file, dry_run)
     
     for msg in messages:
         click.echo(msg)

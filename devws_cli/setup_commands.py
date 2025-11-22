@@ -44,6 +44,9 @@ def setup(force, config_path, project_id, bucket_name, profile, component, dry_r
     it can be run multiple times safely.
     """
     click.echo("=" * 60)
+    if dry_run:
+        click.echo("🔍 DRY RUN MODE - No changes will be made".center(60))
+        click.echo("=" * 60)
     click.echo("Starting ChromeOS Development Environment Setup".center(60))
     click.echo(f"Repository (determined): {REPO_DIR}".center(60))
     click.echo("-" * 60)
@@ -149,6 +152,7 @@ def setup(force, config_path, project_id, bucket_name, profile, component, dry_r
                     
                     # Prepare component-specific config
                     current_component_config = comp_settings.copy()
+                    current_component_config["dry_run"] = dry_run  # Pass dry_run flag to all components
 
                     # Handle overrides for proj_local_config_sync
                     if comp_id == "proj_local_config_sync":
