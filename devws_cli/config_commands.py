@@ -6,7 +6,10 @@ from devws_cli.utils import GLOBAL_DEVWS_CONFIG_FILE, _load_global_config
 @click.group()
 def config():
     """
-    Manages global devws configuration settings.
+    Manages the global devws configuration settings.
+
+    This command group allows you to view and modify the central
+    configuration file used by devws for various operations.
     """
     pass
 

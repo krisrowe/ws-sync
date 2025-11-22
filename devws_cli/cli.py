@@ -8,7 +8,9 @@ from devws_cli.config_commands import config
 @click.group()
 def devws():
     """
-    devws CLI for managing ChromeOS development environment.
+    A comprehensive CLI for setting up and managing ChromeOS development environments.
+
+    devws streamlines workstation setup and project-specific configuration management.
     """
     pass
 

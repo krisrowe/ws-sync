@@ -160,7 +160,7 @@ def _print_action_items():
 
 def _load_config_from_repo(repo_dir):
     """
-    Loads configuration from .config file or .config.example within the repository.
+    Loads configuration from config.yaml file or config.yaml.example within the repository.
     Returns a dictionary of config values.
     """
     config = {}

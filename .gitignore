@@ -2,6 +2,10 @@
 .env
 __pycache__/
 .pytest_cache/
-config.yaml
 *.pyc
 *.bak
+
+# Ignore Python build artifacts
+build/
+devws.egg-info/
+config.yaml

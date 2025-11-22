@@ -24,14 +24,18 @@ REPO_CONFIG_TEMPLATE_FILE = os.path.join(REPO_DIR, "config.yaml.example")
 
 @click.command()
 @click.option('--force', is_flag=True, help='Force re-run of setup steps.')
-@click.option('--config-path', type=click.Path(exists=True), help='Path to a custom .config file.')
+@click.option('--config-path', type=click.Path(exists=True), help='Path to a custom config.yaml file.')
 @click.option('--project-id', help='Google Cloud Project ID for GCS synchronization (overrides config).')
 @click.option('--bucket-name', help='Google Cloud Storage bucket name for GCS synchronization (overrides config).')
 @click.option('--profile', default='default', help='GCS profile name. Defaults to "default".')
 @click.option('--component', multiple=True, help='Run only specified setup components (e.g., --component python --component github).')
 def setup(force, config_path, project_id, bucket_name, profile, component):
     """
-    Manages the Core Workstation Configuration setup.
+    Initializes or updates the core workstation configuration.
+
+    This command installs and configures essential development tools,
+    language runtimes, and CLI utilities. It is idempotent, meaning
+    it can be run multiple times safely.
     """
     click.echo("=" * 60)
     click.echo("Starting ChromeOS Development Environment Setup".center(60))

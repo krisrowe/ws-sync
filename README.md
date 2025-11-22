@@ -8,7 +8,7 @@
 - **🔄 Idempotent Setup**: `devws setup` can be run repeatedly to set up, extend, or repair your environment without issues.
 - **🔐 Secure Global .env Management**: `devws env backup` and `devws env restore` securely manage your global `~/.env` file using Google Secrets Manager.
 - **🛠️ Tool Installation**: Automates installation of essential CLIs (GitHub, Google Cloud, Cursor, Gemini) and language runtimes (Python, Node.js).
-- **⚙️ Configurable**: Customize setup via a `.config` file.
+- **⚙️ Configurable**: Customize setup via a `config.yaml` file.
 
 ### Project-Level Configuration Management (`devws local` commands)
 - **🚀 Project-Scoped Sync**: `devws local pull/push` synchronize project-specific, non-version-controlled files (like `.env` or local config) via Google Cloud Storage (GCS).
@@ -46,7 +46,7 @@ ws-sync/
 │   ├── local_commands.py # Logic for 'devws local' group (pull/push/status/init)
 │   └── clean_commands.py # Logic for 'devws clean'
 ├── archive/              # Historical files (e.g., original Makefiles, READMEs)
-├── .config.example       # Configuration template for 'devws setup'
+├── config.yaml.example   # Configuration template for 'devws setup'
 ├── env.example           # Environment variables template
 ├── .gitignore            # Git ignore rules for the devws repo itself
 ├── MERGE-ANALYSIS.md     # Analysis of the merge process
@@ -57,7 +57,7 @@ ws-sync/
 
 # External files (created by devws setup or local commands):
 ~/.env                   # Your global environment variables (managed by 'devws env')
-~/.config                # Your configuration file for 'devws setup' (gitignored)
+~/.config/devws/config.yaml # Your global configuration file for 'devws setup' (gitignored)
 ./.ws-sync               # Project-specific files to manage (for 'devws local')
 ```
 
@@ -72,7 +72,7 @@ These commands manage your overall development workstation setup.
     devws setup [--force] [--config-path <path>]
     ```
     *   `--force`: Force re-run of setup steps, even if already verified.
-    *   `--config-path`: Specify a custom `.config` file.
+    *   `--config-path`: Specify a custom `config.yaml` file.
 
 *   **`devws env backup`**: Backs up your global `~/.env` file to Google Secrets Manager.
     ```bash
@@ -121,29 +121,44 @@ These commands manage project-specific, non-version-controlled files (like `.env
 
 ## ⚙️ Configuration
 
-### Global Configuration (`.config`)
-The `devws setup` command uses a configuration system to let you customize what gets installed. Copy `.config.example` to `.config` in the repository root and customize:
+### Repository Configuration (config.yaml)
+The `devws setup` command uses a configuration system to let you customize what gets installed. Copy `config.yaml.example` to `config.yaml` in the repository root and customize:
 
-```bash
-# Core Tools
-ENABLE_GITHUB_SETUP=true
-ENABLE_GOOGLE_CLOUD_CLI=true
+```yaml
+# Example configuration for devws CLI
+#
+# This file defines the components and their configurations for your development workstation setup.
+# You can enable or disable specific components and customize their settings.
 
-# Google Cloud Configuration
-PROJECT_ID=your-gcp-project-id  # Required for secrets backup validation
+components:
+  github:
+    enabled: true
+  google_cloud_cli:
+    enabled: true
+  python:
+    enabled: true
+    min_version: "3.9"
+  nodejs:
+    enabled: true
+    min_version: "20"
+  cursor_agent:
+    enabled: true
+  gemini_cli:
+    enabled: true
+  env_setup:
+    enabled: true
+  proj_local_config_sync:
+    enabled: true
+    local_sync_candidates:
+      - "*.env"
+      # Add other files/patterns to synchronize with GCS here
+      # Example:
+      # - "my_project_config.json"
+      # - "secrets/*.txt"
+    bucket_name: "" # Your Google Cloud Storage bucket name for synchronization
 
-# Development Languages
-ENABLE_PYTHON=true
-PYTHON_MIN_VERSION=3.9
-ENABLE_NODEJS=true
-NODEJS_MIN_VERSION=20
-
-# CLI Tools
-ENABLE_CURSOR_AGENT=true  # Cursor Agent CLI tool
-ENABLE_GEMINI_CLI=true    # Command-line tool for Gemini AI
-
-# Environment Management
-ENABLE_ENV_SETUP=true
+# Global settings (not tied to a specific component)
+project_id: "" # Your Google Cloud Project ID (used for secrets backup validation)
 ```
 
 ### Project-Specific Configuration (`.ws-sync`)

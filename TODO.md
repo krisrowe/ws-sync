@@ -74,5 +74,5 @@ These are valuable ideas for future development to make `devws local` even more 
     - Warn the user if local configurations are out of sync with their GCS backups.
 - [ ] **Exclusion Patterns in `.ws-sync`:**
     - Support exclusion patterns (e.g., `!.env`) in `.ws-sync` to explicitly prevent warnings or suggestions for certain files, even if they match global candidates.
-- [ ] **Backup/Restore of `~/.config` and GitHub/SSH Configurations:**
-    - Analyze the viability and appropriateness of incorporating backup/restore functionality for `~/.config` contents, GitHub authentication configurations, and SSH keys. This would involve considering what aspects are valuable, viable, and appropriate for automated management.
+- [ ] **Backup/Restore of `~/.config/devws/config.yaml` and GitHub/SSH Configurations:**
+    - Analyze the viability and appropriateness of incorporating backup/restore functionality for `~/.config/devws/config.yaml` contents, GitHub authentication configurations, and SSH keys. This would involve considering what aspects are valuable, viable, and appropriate for automated management.

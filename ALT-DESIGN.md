@@ -228,11 +228,11 @@ A key consideration is the degree of control you have over your data, especially
 
 ## Future Design Considerations
 
-*   **Backup/Restore of `~/.config` contents, GitHub authentication configurations, and SSH keys:**
+*   **Backup/Restore of `~/.config/devws/config.yaml` contents, GitHub authentication configurations, and SSH keys:**
     *   **Analysis Task:** Explore the viability and appropriateness of incorporating backup/restore functionality for these critical workstation components.
     *   **Scope:** These would be considered part of the **Core Workstation Configuration** (`devws setup` or a new `devws config` subcommand).
     *   **Considerations:**
-        *   What specific files/directories within `~/.config` are valuable to back up?
+        *   What specific files/directories within `~/.config/devws` are valuable to back up?
         *   How to handle sensitive GitHub authentication tokens and SSH private keys securely (e.g., encryption, integration with OS keyrings)?
         *   What are the implications for cross-OS compatibility?
         *   How to integrate this seamlessly into the `devws setup` and `devws env` (or a new `devws config`) commands?

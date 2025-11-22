@@ -89,7 +89,11 @@ def _get_file_hash(file_path):
 @click.group()
 def local():
     """
-    Manages project-level configuration files (e.g., .env) via GCS.
+    Manages project-specific configuration files.
+
+    This set of commands allows you to synchronize project-specific,
+    non-version-controlled files (like .env or local configs)
+    across different workstations using a GCS backend.
     """
     pass
 

@@ -32,7 +32,7 @@ Both `README.md` files serve as primary documentation for their respective funct
 ### Differences:
 *   **Root `README.md` (Core Workstation Configuration):**
     *   **Focus:** Comprehensive ChromeOS Development Environment Setup.
-    *   **Key Features:** Idempotent setup, self-healing, Google Secrets Manager integration for `.env` backup/restore, configurable via `.config`, ChromeOS optimized.
+    *   **Key Features:** Idempotent setup, self-healing, Google Secrets Manager integration for `.env` backup/restore, configurable via `config.yaml`, ChromeOS optimized.
     *   **Content:** Detailed sections on "What Gets Installed," "Configuration," "Status Reporting," "Troubleshooting" specific to the dev environment setup.
     *   **Secrets Management:** Explicitly uses Google Secrets Manager via `secrets.sh`.
 *   **`stuff/README.md` (Ad-Hoc / Project-Level Configuration):**
@@ -123,7 +123,7 @@ devws
 ├── setup           # Core Workstation Configuration setup
 │   │   # Source: Primarily from Root repository (setup.sh, root Makefile)
 │   └── --force     # Option to force re-run
-│   └── --config    # Path to a custom .config file
+│   └── --config-path    # Path to a custom config.yaml file
 ├── secrets         # Secrets management via Google Secrets Manager
 │   │   # Source: Primarily from Root repository (secrets.sh, root Makefile)
 │   ├── backup      # Backup ~/.env to Google Secrets Manager
