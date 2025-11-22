@@ -493,12 +493,19 @@ def pull(force, dry_run, json_output):
 
     # Original pull logic (only if not dry_run)
     click.echo(f"ℹ️ Pulling files for project '{owner}/{repo_name}' from GCS bucket '{bucket_url}'...")
+    
+    # Track results for summary table
+    pull_results = []
+    gitignore_patterns = _get_gitignore_patterns()
 
     local_repo_path = _get_local_repo_path()
 
     for file_pattern in managed_files:
         local_file_path = os.path.join(local_repo_path, file_pattern)
         gcs_object_path = f"{base_gcs_path}/{file_pattern}"
+        
+        action_taken = "Unknown"
+        status = "Unknown"
 
         # Check if local file exists and if we should skip it
         if os.path.exists(local_file_path) and not force:
@@ -518,17 +525,46 @@ def pull(force, dry_run, json_output):
                     gcs_file_status.get('metadata', {}).get('md5_hash')):
                     # Files are identical, skip silently
                     click.echo(f"✅ '{local_file_path}' is already up to date.")
+                    action_taken = "Skipped (Up to date)"
+                    status = "✅"
+                    pull_results.append({
+                        "file_pattern": file_pattern,
+                        "action": action_taken,
+                        "status": status
+                    })
                     continue
                 
                 # Files are different, show warning
                 click.echo(f"⚠️ Local file '{local_file_path}' already exists. Use --force to overwrite.")
+                action_taken = "Skipped (Exists)"
+                status = "⚠️"
+                pull_results.append({
+                    "file_pattern": file_pattern,
+                    "action": action_taken,
+                    "status": status
+                })
                 continue
         
         click.echo(f"⬇️ Pulling '{gcs_object_path}' to '{local_file_path}'...")
         if locals_manager.gcs_cp(gcs_object_path, local_file_path):
             click.echo(f"✅ Pulled '{local_file_path}'.")
+            action_taken = "Pulled"
+            status = "✅"
         else:
             click.echo(f"❌ Failed to pull '{local_file_path}'.", err=True)
+            action_taken = "Failed"
+            status = "❌"
+        
+        pull_results.append({
+            "file_pattern": file_pattern,
+            "action": action_taken,
+            "status": status
+        })
+    
+    # Display summary table
+    if pull_results:
+        click.echo("\n📊 Pull Summary:")
+        click.echo(_generate_ascii_table(pull_results))
 
 @local.command()
 @click.option('--force', is_flag=True, help='Overwrite GCS version if conflicts exist.')
