@@ -7,10 +7,12 @@ import glob # For glob pattern matching
 import yaml # For YAML parsing/dumping
 import json # For parsing gcloud output
 import subprocess
-import sys # Added this line
 from datetime import datetime # For handling timestamps
-from devws_cli.utils import _run_command, _load_global_config, GLOBAL_DEVWS_CONFIG_FILE
-from devws_cli.managers.locals_manager import LocalsManager
+from devws_cli.utils import _run_command, _load_global_config, GLOBAL_DEVWS_CONFIG_FILE, get_git_repo_info, get_gcs_profile_config
+from devws_cli.gcs_manager import GCSManager # Import the new GCSManager
+from devws_cli.gcs_profile_manager import GCSProfileManager # Import the new GCSProfileManager
+
+# from devws_cli.managers.locals_manager import LocalsManager # Removed LocalsManager as it will be refactored
 
 WS_SYNC_FILE = ".ws-sync"
 
@@ -115,12 +117,13 @@ def _get_file_hash(file_path, algorithm='md5'):
         return hasher.hexdigest()
 
 
-def _get_gcs_file_status(gcs_object_path):
+def _get_gcs_file_status(gcs_manager, gcs_object_path):
     """
     Determines the existence, type (file/directory), and relevant metadata
-    of a given path in Google Cloud Storage.
+    of a given path in Google Cloud Storage using the GCSManager.
 
     Args:
+        gcs_manager (GCSManager): An instance of the GCSManager.
         gcs_object_path (str): The full gs:// path to the GCS object or prefix.
 
     Returns:
@@ -132,68 +135,70 @@ def _get_gcs_file_status(gcs_object_path):
     metadata = {}
 
     # First, try to see if it's a directory (prefix) by listing contents
+    # Use gcs_ls with recursive to check for contents under the path
     try:
-        command_dir_check = ['gsutil', 'ls', f'{gcs_object_path.rstrip("/")}/**']
-        result_dir_check = _run_command(command_dir_check, capture_output=True, check=True)
-        if result_dir_check.stdout.strip():
-            # If listing contents succeeds and returns output, it's a directory
-            return {
-                "status": "Present",
-                "type": "Directory",
-                "metadata": {}
-            }
-    except subprocess.CalledProcessError:
+        # Check if it's a directory by listing its content. If it has content, it's a directory.
+        # Use a more specific check, like 'gsutil ls gs://bucket/path/'
+        # Note: gcs_ls needs to be robust for directories too.
+        # For now, if gcs_ls returns anything, we assume it's a directory or has contents.
+        # A more precise check would be to check for gs://path/ and gs://path/*
+        if gcs_object_path.endswith('/'): # If it's explicitly a directory path
+            list_output = gcs_manager.gcs_ls(gcs_object_path, recursive=False)
+            if list_output: # If it's a directory with contents
+                 return {
+                    "status": "Present",
+                    "type": "Directory",
+                    "metadata": {}
+                }
+            else: # Check if the directory itself exists
+                try:
+                    gcs_manager.gcs_stat(gcs_object_path)
+                    return {
+                        "status": "Present",
+                        "type": "Directory",
+                        "metadata": {}
+                    }
+                except subprocess.CalledProcessError:
+                    pass # Not an explicit directory object
+        else: # Try listing as a prefix
+            list_output = gcs_manager.gcs_ls(f"{gcs_object_path}/", recursive=False)
+            if list_output:
+                return {
+                    "status": "Present",
+                    "type": "Directory",
+                    "metadata": {}
+                }
+
+    except Exception: # GCSManager.gcs_ls might raise if gsutil not found etc.
         pass # Not a directory, or empty directory, proceed to check if it's a file
 
-    # If not identified as a directory, try to get file metadata using gcloud storage
+    # If not identified as a directory, try to get file metadata using gcloud storage via GCSManager.gcs_stat
     try:
-        # Use gcloud storage objects describe --format=json for structured output
-        command_file_check = ['gcloud', 'storage', 'objects', 'describe', gcs_object_path, '--format=json']
-        result_file_check = _run_command(command_file_check, capture_output=True, check=True)
-        output = result_file_check.stdout
-
-        # Parse JSON output
-        import json as json_module
-        try:
-            obj = json_module.loads(output)
+        obj_stats = gcs_manager.gcs_stat(gcs_object_path)
+        if obj_stats:
             status = "Present"
-            file_type = "File"
-            
-            # Extract metadata from JSON (md5_hash is at top level)
-            if 'update_time' in obj:
-                metadata['last_modified_timestamp'] = obj['update_time']
-            if 'md5_hash' in obj:
-                # md5_hash is already base64-encoded in GCS
-                metadata['md5_hash'] = obj['md5_hash']
-            
+            file_type = "File" # If stat worked, it's a file
+
+            # Extract metadata from stats (md5_hash is at top level)
+            if 'Update time' in obj_stats: # Key from gsutil stat -L
+                metadata['last_modified_timestamp'] = obj_stats['Update time']
+            if 'Hash (md5)' in obj_stats: # Key from gsutil stat -L (base64-encoded)
+                metadata['md5_hash'] = obj_stats['Hash (md5)']
+
             return {
                 "status": status,
                 "type": file_type,
                 "metadata": metadata
             }
-        except json_module.JSONDecodeError as e:
-            click.echo(f"❌ Error parsing JSON from gcloud storage objects describe: {e}", err=True)
-            return {
-                "status": "Unknown Error",
-                "type": "N/A",
-                "metadata": {}
-            }
-    except subprocess.CalledProcessError as e:
-        # If both directory check and file check failed, then it's not present.
-        # This covers cases where gsutil ls -L returns "No URLs matched".
-        return {
-            "status": "Not Present",
-            "type": "N/A",
-            "metadata": {}
-        }
-    except Exception as e:
-        # Catch any other unexpected errors
-        click.echo(f"❌ Unexpected error getting GCS status for {gcs_object_path}: {e}", err=True)
-        return {
-            "status": "Unknown Error",
-            "type": "N/A",
-            "metadata": {}
-        }
+    except Exception: # GCSManager.gcs_stat will raise CalledProcessError if not found
+        pass # If both directory check and file check failed, then it's not present.
+
+    return {
+        "status": "Not Present",
+        "type": "N/A",
+        "metadata": {}
+    }
+
 
 def _get_local_file_status(local_file_path):
     """
@@ -297,9 +302,18 @@ def init():
     Initializes a .ws-sync file in the current Git repository.
     This file defines which project-specific files are managed by 'devws local'.
     """
-    locals_manager = LocalsManager()
+    global_config, _ = _load_global_config()
+    profile_name = global_config.get('default_gcs_profile', 'default')
+    
+    project_id, bucket_name = get_gcs_profile_config(profile_name)
+    if not project_id or not bucket_name:
+        click.echo(f"❌ GCS configuration not found for profile '{profile_name}'. Please run 'devws setup' first.", err=True)
+        sys.exit(1)
+
+    gcs_manager = GCSManager(bucket_name, profile_name=profile_name) # Instantiate GCSManager
+
     # Check if inside a Git repository
-    owner, repo_name = locals_manager.get_git_repo_info()
+    owner, repo_name = get_git_repo_info()
     if not owner or not repo_name:
         click.echo("❌ Not inside a Git repository. 'devws local init' must be run from a Git repository root.", err=True)
         sys.exit(1)
@@ -312,7 +326,6 @@ def init():
             click.echo("Operation cancelled.")
             sys.exit(0)
 
-    global_config, _ = _load_global_config()
     click.echo(f"DEBUG: global_config in init: {global_config}")
     candidate_glob_patterns = global_config.get('local_sync_candidates', [])
     click.echo(f"DEBUG: candidate_glob_patterns in init: {candidate_glob_patterns}")
@@ -363,7 +376,8 @@ def init():
         click.echo(f"❌ Error creating '{WS_SYNC_FILE}': {e}", err=True)
         sys.exit(1)
 
-def _get_dry_run_results(managed_files, base_gcs_path, gitignore_patterns, local_repo_path, force):
+
+def _get_dry_run_results(gcs_manager, managed_files, base_gcs_path, gitignore_patterns, local_repo_path, force):
     """
     Generates dry run results for the pull command.
     """
@@ -375,7 +389,7 @@ def _get_dry_run_results(managed_files, base_gcs_path, gitignore_patterns, local
         
         # Get local and GCS file status
         local_file_status = _get_local_file_status(local_file_path)
-        gcs_file_status = _get_gcs_file_status(gcs_object_path)
+        gcs_file_status = _get_gcs_file_status(gcs_manager, gcs_object_path)
 
         # Determine actual local status string for display
         local_status_str = local_file_status['status']
@@ -449,33 +463,39 @@ def pull(force, dry_run, json_output, debug):
     """
     Pulls all files listed in .ws-sync from GCS to the local project directory.
     """
-    locals_manager = LocalsManager(silent=json_output, debug=debug)
-    owner, repo_name = locals_manager.get_git_repo_info()
+    # Use LocalsManager for silent/debug context, but GCS operations via GCSManager
+    # locals_manager = LocalsManager(silent=json_output, debug=debug) # LocalsManager no longer needed for GCS ops
+    owner, repo_name = get_git_repo_info()
     if not owner or not repo_name:
         sys.exit(1)
 
-    # Use locals_manager to get project_id and bucket_name from config
-    project_id, bucket_name = locals_manager.get_gcs_profile_config()
+    profile_name = _load_global_config()[0].get('default_gcs_profile', 'default')
+    project_id, bucket_name = get_gcs_profile_config(profile_name)
     if not project_id or not bucket_name:
         click.echo(f"❌ GCS configuration not found. Please run 'devws setup' first.", err=True)
         sys.exit(1)
-    bucket_url = f"gs://{bucket_name}"
+    
+    gcs_manager = GCSManager(bucket_name, profile_name=profile_name)
 
     managed_files = _get_managed_files()
     if not managed_files:
         click.echo(f"ℹ️ No files listed in '{WS_SYNC_FILE}'. Nothing to pull.")
         sys.exit(0)
 
-    base_gcs_path = f"{bucket_url}/projects/{owner}/{repo_name}"
+    base_gcs_path = gcs_manager.get_repo_gcs_path()
+    if not base_gcs_path:
+        click.echo(f"❌ Could not determine GCS path for repository.", err=True)
+        sys.exit(1)
     
     if dry_run:
         if not json_output: # Only echo if not JSON output
-            click.echo(f"ℹ️ Performing dry run for project '{owner}/{repo_name}' from GCS bucket '{bucket_url}'...")
+            click.echo(f"ℹ️ Performing dry run for project '{owner}/{repo_name}' from GCS bucket '{gcs_manager.bucket_url}'...")
         
         gitignore_patterns = _get_gitignore_patterns()
         local_repo_path = _get_local_repo_path()
 
         dry_run_results = _get_dry_run_results(
+            gcs_manager=gcs_manager, # Pass gcs_manager
             managed_files=managed_files,
             base_gcs_path=base_gcs_path,
             gitignore_patterns=gitignore_patterns,
@@ -491,7 +511,7 @@ def pull(force, dry_run, json_output, debug):
         return # Exit after dry run
 
     # Original pull logic (only if not dry_run)
-    click.echo(f"ℹ️ Pulling files for project '{owner}/{repo_name}' from GCS bucket '{bucket_url}'...")
+    click.echo(f"ℹ️ Pulling files for project '{owner}/{repo_name}' from GCS bucket '{gcs_manager.bucket_url}'...")
     
     # Track results for summary table
     pull_results = []
@@ -515,7 +535,7 @@ def pull(force, dry_run, json_output, debug):
             else:
                 # For files, check if it's the same as GCS version
                 local_file_status = _get_local_file_status(local_file_path)
-                gcs_file_status = _get_gcs_file_status(gcs_object_path)
+                gcs_file_status = _get_gcs_file_status(gcs_manager, gcs_object_path) # Pass gcs_manager
                 
                 # Skip the warning if files have identical content (same MD5 hash)
                 if (local_file_status.get('type') == 'File' and 
@@ -545,7 +565,7 @@ def pull(force, dry_run, json_output, debug):
                 continue
         
         click.echo(f"⬇️ Pulling '{gcs_object_path}' to '{local_file_path}'...")
-        if locals_manager.gcs_cp(gcs_object_path, local_file_path):
+        if gcs_manager.gcs_cp(gcs_object_path, local_file_path, recursive=True, debug=debug): # Use gcs_manager.gcs_cp
             click.echo(f"✅ Pulled '{local_file_path}'.")
             action_taken = "Pulled"
             status = "✅"
@@ -575,29 +595,34 @@ def pull(force, dry_run, json_output, debug):
 
 @local.command()
 @click.option('--force', is_flag=True, help='Overwrite GCS version if conflicts exist.')
-def push(force):
+@click.option('--debug', is_flag=True, help='Show debug output including command execution details.')
+def push(force, debug):
     """
     Pushes all files listed in .ws-sync from the local project directory to GCS.
     """
-    locals_manager = LocalsManager()
-    owner, repo_name = locals_manager.get_git_repo_info()
+    owner, repo_name = get_git_repo_info()
     if not owner or not repo_name:
         sys.exit(1)
 
-    # Use locals_manager to get project_id and bucket_name from config
-    project_id, bucket_name = locals_manager.get_gcs_profile_config()
+    profile_name = _load_global_config()[0].get('default_gcs_profile', 'default')
+    project_id, bucket_name = get_gcs_profile_config(profile_name)
     if not project_id or not bucket_name:
         click.echo(f"❌ GCS configuration not found. Please run 'devws setup' first.", err=True)
         sys.exit(1)
-    bucket_url = f"gs://{bucket_name}"
+    
+    gcs_manager = GCSManager(bucket_name, profile_name=profile_name)
     
     managed_files = _get_managed_files()
     if not managed_files:
         click.echo(f"ℹ️ No files listed in '{WS_SYNC_FILE}'. Nothing to push.")
         sys.exit(0)
 
-    base_gcs_path = f"{bucket_url}/projects/{owner}/{repo_name}"
-    click.echo(f"ℹ️ Pushing files for project '{owner}/{repo_name}' to GCS bucket '{bucket_url}'...")
+    base_gcs_path = gcs_manager.get_repo_gcs_path()
+    if not base_gcs_path:
+        click.echo(f"❌ Could not determine GCS path for repository.", err=True)
+        sys.exit(1)
+
+    click.echo(f"ℹ️ Pushing files for project '{owner}/{repo_name}' to GCS bucket '{gcs_manager.bucket_url}'...")
 
     gitignore_patterns = _get_gitignore_patterns()
     local_repo_path = _get_local_repo_path()
@@ -620,84 +645,133 @@ def push(force):
                 continue
         
         click.echo(f"⬆️ Pushing '{local_file_path}' to '{gcs_object_path}'...")
-        if locals_manager.gcs_cp(local_file_path, gcs_object_path):
+        if gcs_manager.gcs_cp(local_file_path, gcs_object_path, recursive=True, debug=debug): # Use gcs_manager.gcs_cp
             click.echo(f"✅ Pushed '{local_file_path}'.")
         else:
             click.echo(f"❌ Failed to push '{local_file_path}'.", err=True)
 
+def _is_ignored_by_git_check_ignore(file_path):
+    """
+    Checks if a file path is ignored by .gitignore using `git check-ignore -q`.
+    Returns True if ignored, False otherwise.
+    """
+    try:
+        # git check-ignore -q returns 0 if ignored, 1 if not ignored
+        _run_command(['git', 'check-ignore', '-q', file_path], check=False, capture_output=True)
+        return True
+    except subprocess.CalledProcessError: # Non-zero exit code means not ignored
+        return False
+
 @local.command()
-def status():
+@click.option('--debug', is_flag=True, help='Show debug output including command execution details.')
+@click.option('--all', is_flag=True, help='List files ignored by .gitignore but not in .ws-sync.')
+def status(debug, all):
     """
     Shows sync status of managed files (local vs. GCS, .gitignore check).
     """
-    locals_manager = LocalsManager()
-    owner, repo_name = locals_manager.get_git_repo_info()
+    owner, repo_name = get_git_repo_info()
     if not owner or not repo_name:
         sys.exit(1)
 
-    # Use locals_manager to get project_id and bucket_name from config
-    project_id, bucket_name = locals_manager.get_gcs_profile_config()
+    profile_name = _load_global_config()[0].get('default_gcs_profile', 'default')
+    project_id, bucket_name = get_gcs_profile_config(profile_name)
     if not project_id or not bucket_name:
         click.echo(f"❌ GCS configuration not found. Please run 'devws setup' first.", err=True)
         sys.exit(1)
-    bucket_url = f"gs://{bucket_name}"
+    
+    gcs_manager = GCSManager(bucket_name, profile_name=profile_name)
     
     managed_files = _get_managed_files()
     if not managed_files:
         click.echo(f"ℹ️ No files listed in '{WS_SYNC_FILE}'. Nothing to check.")
-        sys.exit(0)
+        # If --all is present, still proceed to check ignored files
+        if not all:
+            sys.exit(0)
 
-    base_gcs_path = f"{bucket_url}/projects/{owner}/{repo_name}"
-    click.echo(f"ℹ️ Checking status for project '{owner}/{repo_name}' in GCS bucket '{bucket_url}'...")
+    base_gcs_path = gcs_manager.get_repo_gcs_path()
+    if not base_gcs_path:
+        click.echo(f"❌ Could not determine GCS path for repository.", err=True)
+        sys.exit(1)
 
-    gitignore_patterns = _get_gitignore_patterns()
+    click.echo(f"ℹ️ Checking status for project '{owner}/{repo_name}' in GCS bucket '{gcs_manager.bucket_url}'...")
+
     local_repo_path = _get_local_repo_path()
+
+    status_data = []
 
     for file_pattern in managed_files:
         local_file_path = os.path.join(local_repo_path, file_pattern)
         gcs_object_path = f"{base_gcs_path}/{file_pattern}"
         
-        click.echo(f"\n--- File: {local_file_path} ---")
-
-        # .gitignore check
-        if _is_ignored(file_pattern, gitignore_patterns): # Pass file_pattern for gitignore check
-            click.echo(f"  ✅ Git Status: Correctly ignored by .gitignore.")
-        else:
-            click.echo(f"  ⚠️ Git Status: WARNING! Not ignored by .gitignore. Consider adding '{local_file_path}' to .gitignore.")
+        ignored_by_gitignore = _is_ignored_by_git_check_ignore(file_pattern)
 
         # Local file existence and hash
         local_exists = os.path.exists(local_file_path)
         local_hash = None
         if local_exists:
-            click.echo(f"  ✅ Local Status: Exists.")
             local_hash = _get_file_hash(local_file_path)
-            click.echo(f"  Local Hash: {local_hash}")
-        else:
-            click.echo(f"  ❌ Local Status: Does NOT exist.")
         
-        # GCS file existence and hash (requires fetching metadata)
-        gcs_exists = False
-        gcs_hash = None
-        try:
-            # Use gsutil stat to get the status of the GCS object
-            # gsutil stat doesn't directly give SHA256 easily, so we'll check existence for now.
-            # Full hash comparison is a future enhancement.
-            _run_command(['gsutil', 'stat', gcs_object_path], capture_output=True)
-            gcs_exists = True
-            click.echo(f"  ✅ GCS Status: Exists at {gcs_object_path}.")
-        except subprocess.CalledProcessError:
-            click.echo(f"  ❌ GCS Status: Does NOT exist at {gcs_object_path}.")
-        
-        # Basic sync status
+        # GCS file existence and hash
+        gcs_file_status = _get_gcs_file_status(gcs_manager, gcs_object_path)
+        gcs_exists = (gcs_file_status['status'] == "Present")
+        gcs_hash = gcs_file_status['metadata'].get('md5_hash')
+
+        sync_status = "N/A"
         if local_exists and gcs_exists:
-            # For a true sync status, we'd compare hashes. This is a placeholder.
-            click.echo("  ➡️ Sync Status: Local and GCS versions exist. (Content comparison is a future enhancement).")
+            if local_hash and gcs_hash and local_hash == gcs_hash:
+                sync_status = "In Sync"
+            else:
+                sync_status = "Content Differs"
         elif local_exists and not gcs_exists:
-            click.echo("  ➡️ Sync Status: Local file exists, but not in GCS. Consider 'devws local push'.")
+            sync_status = "Local Only"
         elif not local_exists and gcs_exists:
-            click.echo("  ➡️ Sync Status: GCS file exists, but not locally. Consider 'devws local pull'.")
+            sync_status = "GCS Only"
         else:
-            click.echo("  ➡️ Sync Status: Neither local nor GCS file exists.")
+            sync_status = "Neither Exists"
+        
+        status_data.append({
+            "File": file_pattern,
+            "Local Status": "Exists" if local_exists else "Missing",
+            "GCS Status": "Exists" if gcs_exists else "Missing",
+            "Gitignored": "Yes" if ignored_by_gitignore else "No",
+            "Sync Status": sync_status
+        })
+    
+    if status_data:
+        click.echo("\n📊 Managed Files Status:")
+        click.echo(_generate_ascii_table(status_data))
+    
+    # --- Logic for --all flag: Ignored but not managed files ---
+    if all:
+        click.echo("\n--- Checking for Ignored Files Not in .ws-sync (with --all) ---")
+        try:
+            # Use git ls-files --ignored --exclude-standard to get ignored files
+            # -z for null-delimited output, -c for cached, -o for other (untracked)
+            ignored_files_output = _run_command(['git', 'ls-files', '--ignored', '--exclude-standard', '--others', '-z'], capture_output=True, check=True).stdout
+            all_ignored_files = set(ignored_files_output.split('\0'))
+            all_ignored_files.discard('') # Remove empty string if any
+
+            managed_files_set = set(managed_files)
+            ignored_but_not_managed = []
+
+            for ignored_file in all_ignored_files:
+                if ignored_file not in managed_files_set:
+                    ignored_but_not_managed.append({"File": ignored_file})
+            
+            if ignored_but_not_managed:
+                click.echo("\n⚠️ Ignored by .gitignore but NOT listed in .ws-sync:")
+                click.echo(_generate_ascii_table(ignored_but_not_managed))
+                click.echo("  Consider adding these files to .ws-sync if they are configuration files to be synchronized.")
+            else:
+                click.echo("✅ No ignored files found that are not also in .ws-sync.")
+
+        except subprocess.CalledProcessError as e:
+            click.echo(f"❌ Error running git ls-files to check ignored files: {e}", err=True)
+            if e.stderr: click.echo(f"Stderr: {e.stderr}", err=True)
+        except Exception as e:
+            click.echo(f"❌ An unexpected error occurred while checking ignored files: {e}", err=True)
+    
+    click.echo("-" * 60)
 
 @local.command(name="setup")
 @click.option('--profile', default='default', help='The name of the GCS profile to set up. Defaults to "default".')
@@ -707,7 +781,7 @@ def local_setup(profile, project_id, bucket_name):
     """
     Sets up or displays the current GCS configuration for devws local commands.
     """
-    locals_manager = LocalsManager()
+    gcs_profile_manager = GCSProfileManager()
     global_config, actual_global_config_file = _load_global_config()
     if 'gcs_profiles' not in global_config:
         global_config['gcs_profiles'] = {}
@@ -715,7 +789,7 @@ def local_setup(profile, project_id, bucket_name):
     current_profile_data_in_config = global_config['gcs_profiles'].get(profile, {})
 
     # --- Find existing labeled resources in GCP for this profile ---
-    labeled_projects, labeled_buckets = locals_manager._find_labeled_gcs_resources(profile)
+    labeled_projects, labeled_buckets = gcs_profile_manager._find_labeled_gcs_resources(profile)
 
     # Filter labeled buckets to only those within labeled projects, and get unique (project_id, bucket_name)
     found_gcp_setups = set()
@@ -751,6 +825,9 @@ def local_setup(profile, project_id, bucket_name):
             # Verify Bucket exists in Project
             click.echo(f"ℹ️ Verifying if bucket 'gs://{chosen_bucket_name}' exists in project '{chosen_project_id}'...")
             try:
+                # Use GCSManager for the actual bucket verification
+                # Note: GCSManager's __init__ takes bucket_name, not project_id.
+                # The _run_command with -p flag is more direct for project-specific bucket check.
                 _run_command(['gsutil', 'ls', '-p', chosen_project_id, f'gs://{chosen_bucket_name}'], capture_output=True, check=True)
                 click.echo(f"✅ Bucket 'gs://{chosen_bucket_name}' found in project '{chosen_project_id}'.")
             except Exception as e:
@@ -759,8 +836,8 @@ def local_setup(profile, project_id, bucket_name):
                 sys.exit(1)
             
             # Apply labels
-            locals_manager._apply_label_to_project(chosen_project_id, profile)
-            locals_manager._apply_label_to_bucket(chosen_bucket_name, profile)
+            gcs_profile_manager._apply_label_to_project(chosen_project_id, profile)
+            gcs_profile_manager._apply_label_to_bucket(chosen_bucket_name, profile)
 
             # Store in global config
             global_config['gcs_profiles'][profile] = {
@@ -831,8 +908,8 @@ def local_setup(profile, project_id, bucket_name):
                     sys.exit(1)
                 
                 # Apply labels
-                locals_manager._apply_label_to_project(chosen_project_id, profile)
-                locals_manager._apply_label_to_bucket(chosen_bucket_name, profile)
+                gcs_profile_manager._apply_label_to_project(chosen_project_id, profile)
+                gcs_profile_manager._apply_label_to_bucket(chosen_bucket_name, profile)
 
                 # Store in global config
                 global_config['gcs_profiles'][profile] = {
@@ -860,10 +937,10 @@ def local_setup_clear(profile):
     Removes GCS labels for the specified profile from all projects and buckets.
     THIS IS A DESTRUCTIVE COMMAND, LABELS ARE PERMANENTLY REMOVED.
     """
-    locals_manager = LocalsManager()
+    gcs_profile_manager = GCSProfileManager()
     click.echo(f"🗑️ Attempting to clear GCS labels for profile: '{profile}'")
 
-    labeled_projects, labeled_buckets = locals_manager._find_labeled_gcs_resources(profile)
+    labeled_projects, labeled_buckets = gcs_profile_manager._find_labeled_gcs_resources(profile)
 
     if not labeled_projects and not labeled_buckets:
         click.echo(f"ℹ️ No projects or buckets found with label 'ws-sync={profile}'. Nothing to clear.")
@@ -886,12 +963,12 @@ def local_setup_clear(profile):
     success = True
     # Remove labels from projects
     for p_id in labeled_projects:
-        if not locals_manager._remove_label_from_project(p_id, profile):
+        if not gcs_profile_manager._remove_label_from_project(p_id, profile):
             success = False
     
     # Remove labels from buckets
     for b_name in labeled_buckets:
-        if not locals_manager._remove_label_from_bucket(b_name, profile):
+        if not gcs_profile_manager._remove_label_from_bucket(b_name, profile):
             success = False
     
     # Also remove from global config
@@ -916,25 +993,29 @@ def local_setup_clear(profile):
         sys.exit(1)
 
 @local.command(name="clear")
-def local_clear():
+@click.option('--debug', is_flag=True, help='Show debug output including command execution details.')
+def local_clear(debug):
     """
     Deletes all project-scoped files for the current repository from GCS.
     Requires user confirmation. THIS IS A DESTRUCTIVE COMMAND.
     """
-    locals_manager = LocalsManager()
-    owner, repo_name = locals_manager.get_git_repo_info()
+    owner, repo_name = get_git_repo_info()
     if not owner or not repo_name:
         sys.exit(1)
 
-    # Use locals_manager to get project_id and bucket_name from config
-    project_id, bucket_name = locals_manager.get_gcs_profile_config()
+    profile_name = _load_global_config()[0].get('default_gcs_profile', 'default')
+    project_id, bucket_name = get_gcs_profile_config(profile_name)
     if not project_id or not bucket_name:
         click.echo(f"❌ GCS configuration not found. Please run 'devws setup' first.", err=True)
         sys.exit(1)
-    bucket_url = f"gs://{bucket_name}"
     
-    base_gcs_path = f"{bucket_url}/projects/{owner}/{repo_name}"
+    gcs_manager = GCSManager(bucket_name, profile_name=profile_name)
     
+    base_gcs_path = gcs_manager.get_repo_gcs_path()
+    if not base_gcs_path:
+        click.echo(f"❌ Could not determine GCS path for repository.", err=True)
+        sys.exit(1)
+
     click.echo(f"⚠️  WARNING: This will delete ALL project-scoped files for '{owner}/{repo_name}'")
     click.echo(f"   from GCS path: '{base_gcs_path}/*'")
     if not click.confirm("Are you sure you want to proceed with this destructive operation?"):
@@ -943,8 +1024,8 @@ def local_clear():
     
     click.echo(f"🗑️ Deleting files from {base_gcs_path}/...")
     try:
-        # Use gsutil rm -r to remove all objects under the project path
-        _run_command(['gsutil', '-m', 'rm', '-r', f'{base_gcs_path}/*'])
+        # Use gcs_manager.gcs_rm to remove all objects under the project path
+        gcs_manager.gcs_rm(f'{base_gcs_path}/*', recursive=True, debug=debug)
         click.echo(f"✅ Successfully deleted all project-scoped files for '{owner}/{repo_name}' from GCS.")
     except Exception as e:
         click.echo(f"❌ Failed to delete files from GCS: {e}", err=True)
