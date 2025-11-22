@@ -502,22 +502,27 @@ def pull(force, dry_run, json_output):
 
         # Check if local file exists and if we should skip it
         if os.path.exists(local_file_path) and not force:
-            # If the file exists locally, check if it's the same as GCS version
-            local_file_status = _get_local_file_status(local_file_path)
-            gcs_file_status = _get_gcs_file_status(gcs_object_path)
-            
-            # Skip the warning if files have identical content (same MD5 hash)
-            if (local_file_status.get('type') == 'File' and 
-                gcs_file_status.get('type') == 'File' and
-                local_file_status.get('metadata', {}).get('md5_hash') == 
-                gcs_file_status.get('metadata', {}).get('md5_hash')):
-                # Files are identical, skip silently
-                click.echo(f"✅ '{local_file_path}' is already up to date.")
+            # Skip force check for directories - always sync them
+            if os.path.isdir(local_file_path):
+                # Directories are synced recursively, proceed with pull
+                pass
+            else:
+                # For files, check if it's the same as GCS version
+                local_file_status = _get_local_file_status(local_file_path)
+                gcs_file_status = _get_gcs_file_status(gcs_object_path)
+                
+                # Skip the warning if files have identical content (same MD5 hash)
+                if (local_file_status.get('type') == 'File' and 
+                    gcs_file_status.get('type') == 'File' and
+                    local_file_status.get('metadata', {}).get('md5_hash') == 
+                    gcs_file_status.get('metadata', {}).get('md5_hash')):
+                    # Files are identical, skip silently
+                    click.echo(f"✅ '{local_file_path}' is already up to date.")
+                    continue
+                
+                # Files are different, show warning
+                click.echo(f"⚠️ Local file '{local_file_path}' already exists. Use --force to overwrite.")
                 continue
-            
-            # Files are different, show warning
-            click.echo(f"⚠️ Local file '{local_file_path}' already exists. Use --force to overwrite.")
-            continue
         
         click.echo(f"⬇️ Pulling '{gcs_object_path}' to '{local_file_path}'...")
         if locals_manager.gcs_cp(gcs_object_path, local_file_path):
