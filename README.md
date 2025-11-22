@@ -51,21 +51,11 @@ If you don't have the repository cloned:
 
 2. **If you encounter an "externally-managed-environment" error:**
    
-   Modern Python installations prevent system-wide package installation. Use one of these alternatives:
+   Modern Python installations prevent system-wide package installation. Use pipx instead:
    
-   **Option A - Using pipx (recommended):**
    ```bash
    pipx install git+https://github.com/github-user/ws-sync.git
    ```
-   
-   **Option B - Using a virtual environment:**
-   ```bash
-   python3 -m venv devws-env
-   source devws-env/bin/activate
-   pip install git+https://github.com/github-user/ws-sync.git
-   ```
-   
-   Note: With a venv, you'll need to activate it each time or use the full path to the binary.
 
 ### Verifying Installation
 
