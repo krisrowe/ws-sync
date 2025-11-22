@@ -32,4 +32,4 @@ def setup(config):
     else:
         click.echo("Google Cloud CLI is already installed.")
         _log_step("Google Cloud CLI Installation", "VERIFIED")
-    click.echo("-
+    click.echo("-" * 60)

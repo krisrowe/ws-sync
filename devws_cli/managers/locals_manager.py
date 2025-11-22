@@ -302,9 +302,12 @@ class LocalsManager:
     def gcs_cp(self, source, destination):
         """
         Wrapper for gsutil cp command.
+        Adds -r flag to handle directories.
         """
         try:
-            _run_command(['gsutil', 'cp', source, destination])
+            command = ['gsutil', 'cp', '-r', source, destination]
+            click.echo(f"DEBUG: Executing gsutil command: {' '.join(command)}")
+            _run_command(command)
             return True
         except Exception as e:
             click.echo(f"❌ gsutil cp failed: {e}", err=True)

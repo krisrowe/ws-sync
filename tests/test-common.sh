@@ -4,7 +4,7 @@
 set -e
 
 # --- Common Variables ---
-PROJECT_ROOT="/home/mytexoma/ws-sync"
+PROJECT_ROOT="/home/user/ws-sync"
 
 # --- Functions for Test Setup ---
 

@@ -36,6 +36,7 @@ def _get_managed_files():
     with open(ws_sync_path, 'r') as f:
         for line in f:
             line = line.strip()
+            line = line.rstrip('/') # Remove trailing slash for consistent GCS paths
             if line and not line.startswith('#'):
                 managed_files.append(line)
     return managed_files
@@ -65,8 +66,15 @@ def _is_ignored(file_path, gitignore_patterns):
         if fnmatch.fnmatch(file_path, pattern):
             return True
         # Handle directory patterns (e.g., 'node_modules/')
-        if pattern.endswith('/') and file_path.startswith(pattern):
-            return True
+        # If pattern ends with '/', it matches directories.
+        # We need to check if file_path is exactly that directory, or a file/directory within it.
+        if pattern.endswith('/'):
+            # Check if file_path is the directory itself (without trailing slash)
+            if file_path == pattern.rstrip('/'):
+                return True
+            # Check if file_path is inside the directory
+            if file_path.startswith(pattern):
+                return True
         # Handle patterns that match directories themselves (e.g., 'venv')
         if os.path.isdir(file_path) and fnmatch.fnmatch(os.path.basename(file_path), pattern):
             return True
@@ -346,9 +354,7 @@ def local_setup(profile, project_id, bucket_name):
     Sets up or displays the current GCS configuration for devws local commands.
     """
     locals_manager = LocalsManager()
-    click.echo(f"🗂️ Working with profile: '{profile}'")
-    
-    global_config = _load_global_config()
+    global_config, actual_global_config_file = _load_global_config()
     if 'gcs_profiles' not in global_config:
         global_config['gcs_profiles'] = {}
 
@@ -411,11 +417,11 @@ def local_setup(profile, project_id, bucket_name):
                 global_config['default_gcs_profile'] = profile
 
             try:
-                with open(GLOBAL_DEVWS_CONFIG_FILE, 'w') as f:
+                with open(actual_global_config_file, 'w') as f:
                     yaml.safe_dump(global_config, f, default_flow_style=False)
-                click.echo(f"✅ GCS profile '{profile}' configured and saved to {GLOBAL_DEVWS_CONFIG_FILE}")
+                click.echo(f"✅ GCS profile '{profile}' configured and saved to {actual_global_config_file}")
             except IOError as e:
-                click.echo(f"❌ Error writing to global config file {GLOBAL_DEVWS_CONFIG_FILE}: {e}", err=True)
+                click.echo(f"❌ Error writing to global config file {actual_global_config_file}: {e}", err=True)
                 sys.exit(1)
             
     else: # No arguments provided
@@ -535,7 +541,7 @@ def local_setup_clear(profile):
             success = False
     
     # Also remove from global config
-    global_config = _load_global_config()
+    global_config, _ = _load_global_config()
     if 'gcs_profiles' in global_config and profile in global_config['gcs_profiles']:
         del global_config['gcs_profiles'][profile]
         if global_config.get('default_gcs_profile') == profile:
