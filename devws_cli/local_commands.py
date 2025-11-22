@@ -247,24 +247,22 @@ def _generate_ascii_table(data):
     if not data:
         return "No data to display."
 
-    # Define columns and their display names
-    columns = [
-        ("file_pattern", "File Pattern"),
-        ("local_status", "Local Status"),
-        ("gcs_status", "GCS Status"),
-        ("ignored_by_gitignore", "Ignored by .gitignore"),
-        ("action", "Action")
-    ]
+    # Get columns from the first row
+    columns = [(key, key.replace('_', ' ').title()) for key in data[0].keys()]
     
-    headers = [col_display for _, col_display in columns]
-
-    # Calculate maximum column widths
-    column_widths = {key: len(display_name) for key, display_name in columns}
-    for row in data:
-        for key, _ in columns:
-            column_widths[key] = max(column_widths[key], len(str(row.get(key, ''))))
+    # Calculate column widths
+    column_widths = {}
+    for col_key, col_header in columns:
+        # Start with header width
+        column_widths[col_key] = len(col_header)
+        # Check all data rows
+        for row in data:
+            value_len = len(str(row.get(col_key, '')))
+            if value_len > column_widths[col_key]:
+                column_widths[col_key] = value_len
     
     # Build the header row
+    headers = [col_header for _, col_header in columns]
     header_line = " | ".join(headers[i].ljust(column_widths[columns[i][0]]) for i in range(len(columns)))
     
     # Build the separator line
