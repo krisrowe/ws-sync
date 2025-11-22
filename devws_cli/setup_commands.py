@@ -82,11 +82,6 @@ def setup(force, config_path, project_id, bucket_name, profile, component, dry_r
         _log_step("Global Config File", "VERIFIED", f"{GLOBAL_DEVWS_CONFIG_FILE} already exists.")
     click.echo("-" * 60)
 
-    # --- Step 1: GCS Path Migration (if needed) ---
-    click.echo("\nStep 1: Checking for old GCS path structure for migration...")
-    _migrate_old_gcs_paths(global_config, force) # Pass global_config and force
-    click.echo("-" * 60)
-
     # --- Consolidate and Sort Components by Tier ---
     all_components_to_run = []
 
@@ -235,62 +230,6 @@ def setup(force, config_path, project_id, bucket_name, profile, component, dry_r
     # --- Final Report ---
     click.echo("\n" + "=" * 60)
 
-    # --- Final Report ---
-    click.echo("\n" + "=" * 60)
     click.echo("SETUP COMPLETE!".center(60))
     click.echo("=" * 60)
     _print_final_report()
-
-def _migrate_old_gcs_paths(global_config, force_migration):
-    """
-    Migrates GCS objects from the old '/projects/<owner>/<repo>' path to the new '/repos/<owner>/<repo>' path.
-    """
-    migration_completed_key = 'gcs_migration_v1_completed'
-    if global_config.get(migration_completed_key) and not force_migration:
-        _log_step("GCS Path Migration", "VERIFIED", "Migration already completed.")
-        return
-
-    profile_name = global_config.get('default_gcs_profile', 'default')
-    project_id, bucket_name = get_gcs_profile_config(profile_name)
-
-    if not bucket_name:
-        _log_step("GCS Path Migration", "SKIP", "No GCS bucket configured.")
-        return
-
-    gcs_manager = GCSManager(bucket_name, profile_name=profile_name)
-    base_gcs_url = gcs_manager.bucket_url
-
-    old_prefix = f"{base_gcs_url}/projects/"
-    new_prefix = f"{base_gcs_url}/repos/"
-
-    try:
-        # List all objects under the old /projects/ prefix
-        click.echo(f"ℹ️ Listing objects under old GCS path: {old_prefix}")
-        old_paths = gcs_manager.gcs_ls(f"{old_prefix}*", recursive=True, debug=True) # List all sub-objects
-
-        if not old_paths:
-            _log_step("GCS Path Migration", "VERIFIED", "No old GCS paths found for migration.")
-        else:
-            _log_step("GCS Path Migration", "COMPLETED", "Starting migration of old GCS paths.")
-            migrated_count = 0
-            for old_path in old_paths:
-                # Example old_path: gs://my-bucket/projects/owner/repo/file.txt
-                # Need to extract 'owner/repo/file.txt' part
-                relative_path = old_path.replace(old_prefix, '')
-                
-                # Construct new path: gs://my-bucket/repos/owner/repo/file.txt
-                new_path = f"{new_prefix}{relative_path}"
-                
-                click.echo(f"Moving {old_path} to {new_path}")
-                gcs_manager.gcs_mv(old_path, new_path, debug=True)
-                migrated_count += 1
-            
-            _log_step("GCS Path Migration", "COMPLETED", f"Migrated {migrated_count} objects.")
-
-        # Mark migration as completed in global config
-        global_config[migration_completed_key] = True
-        with open(GLOBAL_DEVWS_CONFIG_FILE, 'w') as f:
-            yaml.safe_dump(global_config, f, default_flow_style=False)
-        
-    except Exception as e:
-        _log_step("GCS Path Migration", "FAIL", f"Error during migration: {e}")
