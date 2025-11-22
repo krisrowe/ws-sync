@@ -101,10 +101,12 @@ These commands manage project-specific, non-version-controlled files (like `.env
 
 *   **`devws local pull`**: Pulls all files listed in `.ws-sync` from GCS to the local project directory.
     ```bash
-    devws local pull [--profile <profile_name>] [--force]
+    devws local pull [--profile <profile_name>] [--force] [--dry-run] [--json]
     ```
     *   `--profile`: Specifies the GCS profile to use.
     *   `--force`: Overwrite local changes if conflicts exist.
+    *   `--dry-run`: Perform a dry run without actually pulling files, showing what would happen.
+    *   `--json`: Output dry run results as JSON.
 
 *   **`devws local push`**: Pushes all files listed in `.ws-sync` from the local project directory to GCS.
     ```bash
