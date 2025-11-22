@@ -447,9 +447,7 @@ def _get_dry_run_results(gcs_manager, managed_files, base_gcs_path, gitignore_pa
             "local_status": local_status_str,
             "gcs_status": gcs_file_status['status'],
             "ignored_by_gitignore": ignored_by_gitignore,
-            "action": action,
-            "local_details": local_file_status,
-            "gcs_details": gcs_file_status
+            "action": action
         })
     
     return dry_run_results
