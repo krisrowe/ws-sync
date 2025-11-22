@@ -16,22 +16,64 @@
 - **🛡️ .gitignore Integration**: Warns if managed files are not in `.gitignore` to prevent accidental commits of sensitive data.
 - **📊 Status Checks**: `devws local status` provides an overview of local vs. GCS file status.
 
-## 🚀 Quick Start
+## 🚀 Installation
 
-1.  **Clone this repository (for initial setup):**
-    ```bash
-    git clone https://github.com/github-user/ws-sync.git
-    cd ws-sync
-    ```
-2.  **Install the `devws` CLI:**
-    ```bash
-    pip install .
-    ```
-    *(Note: For a production-ready installation, you would typically install from PyPI: `pip install devws`)*
-3.  **Run the initial workstation setup:**
-    ```bash
-    devws setup
-    ```
+### Option 1: Install from Local Repository (Recommended for Development)
+
+If you have cloned this repository locally:
+
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/github-user/ws-sync.git
+   cd ws-sync
+   ```
+
+2. **Install using pipx (recommended):**
+   ```bash
+   pipx install --editable .
+   ```
+   
+   This installs `devws` in an isolated environment while keeping it editable, so code changes are immediately reflected.
+
+3. **Run the initial workstation setup:**
+   ```bash
+   devws setup
+   ```
+
+### Option 2: Install Without Local Repository
+
+If you don't have the repository cloned:
+
+1. **Try installing with pip:**
+   ```bash
+   pip install git+https://github.com/github-user/ws-sync.git
+   ```
+
+2. **If you encounter an "externally-managed-environment" error:**
+   
+   Modern Python installations prevent system-wide package installation. Use one of these alternatives:
+   
+   **Option A - Using pipx (recommended):**
+   ```bash
+   pipx install git+https://github.com/github-user/ws-sync.git
+   ```
+   
+   **Option B - Using a virtual environment:**
+   ```bash
+   python3 -m venv devws-env
+   source devws-env/bin/activate
+   pip install git+https://github.com/github-user/ws-sync.git
+   ```
+   
+   Note: With a venv, you'll need to activate it each time or use the full path to the binary.
+
+### Verifying Installation
+
+Check that `devws` is installed correctly:
+```bash
+devws --help
+devws local pull --help
+```
     This will guide you through setting up your core development environment.
 
 ## 📁 File Structure
@@ -194,6 +236,12 @@ This is a personal development environment setup. If you find issues or want to 
 1.  **Create an issue** - Report bugs or request features
 2.  **Fork and submit PR** - Contribute code improvements
 3.  **Share feedback** - Let me know what works well or needs improvement
+
+## 🔮 Future Enhancements
+
+- **Direct GitHub Installation**: Simplify installation with a single command (similar to `npx`) that doesn't require cloning the repository first
+- **PyPI Publishing**: Publish to PyPI for easier installation via `pip install devws`
+- **Auto-update Mechanism**: Built-in command to update `devws` to the latest version
 
 ## 📄 License
 
