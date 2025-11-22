@@ -7,8 +7,16 @@ import re # For regex in _get_git_repo_info
 from devws_cli.utils import _run_command, _get_ws_sync_label_key, _load_global_config, GLOBAL_DEVWS_CONFIG_FILE
 
 class LocalsManager:
-    def __init__(self, silent=False):
+    def __init__(self, silent=False, debug=False):
+        """
+        Initializes the LocalsManager.
+        
+        Args:
+            silent: If True, suppresses informational output
+            debug: If True, shows debug output including command execution details
+        """
         self.silent = silent
+        self.debug = debug
 
     def _apply_label_to_project(self, project_id, profile_name):
         """Applies ws-sync label to a project."""
@@ -305,9 +313,20 @@ class LocalsManager:
         Adds -r flag to handle directories.
         """
         try:
-            command = ['gsutil', 'cp', '-r', source, destination]
-            click.echo(f"DEBUG: Executing gsutil command: {' '.join(command)}")
-            _run_command(command)
+            # Construct the gsutil command
+            command = ['gsutil']
+            
+            # Suppress progress output unless in debug mode
+            if not self.debug:
+                command.extend(['-q'])  # Quiet mode
+            
+            command.extend(['cp', '-r', source, destination])
+            
+            if self.debug:
+                click.echo(f"DEBUG: Executing gsutil command: {' '.join(command)}")
+            
+            # Execute the command
+            _run_command(command, check=True, debug=self.debug)
             return True
         except Exception as e:
             click.echo(f"❌ gsutil cp failed: {e}", err=True)
@@ -318,7 +337,7 @@ class LocalsManager:
         Retrieves project_id and bucket_name for a given profile from global config.
         Returns (project_id, bucket_name) or (None, None) if not found.
         """
-        global_config, _ = _load_global_config(silent=self.silent)
+        global_config, _ = _load_global_config(silent=self.silent, debug=self.debug)
         
         gcs_profiles = global_config.get('gcs_profiles', {})
         profile_config = gcs_profiles.get(profile_name, {})

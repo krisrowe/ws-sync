@@ -14,9 +14,12 @@ STEP_COUNT = 0
 GLOBAL_DEVWS_CONFIG_DIR = os.path.expanduser("~/.config/devws")
 GLOBAL_DEVWS_CONFIG_FILE = os.path.join(GLOBAL_DEVWS_CONFIG_DIR, "config.yaml")
 
-def _run_command(command, check=True, capture_output=False, shell=False, cwd=None, env=None): # Added env parameter
+def _run_command(command, check=True, capture_output=False, shell=False, cwd=None, env=None, debug=False):
     """
     Wrapper for subprocess.run to execute shell commands.
+    
+    Args:
+        debug: If True, shows error messages when commands fail
     """
     if env is None:
         env = os.environ.copy() # Use a copy of the current environment by default
@@ -34,13 +37,15 @@ def _run_command(command, check=True, capture_output=False, shell=False, cwd=Non
         return result
     except subprocess.CalledProcessError as e:
         # This block is only reached if check=True and command failed
-        click.echo(f"Command failed: {' '.join(command) if isinstance(command, list) else command}", err=True)
-        if capture_output:
-            click.echo(f"Stdout: {e.stdout}", err=True)
-            click.echo(f"Stderr: {e.stderr}", err=True)
+        if debug:
+            click.echo(f"Command failed: {' '.join(command) if isinstance(command, list) else command}", err=True)
+            if capture_output:
+                click.echo(f"Stdout: {e.stdout}", err=True)
+                click.echo(f"Stderr: {e.stderr}", err=True)
         raise # Re-raise the exception as check=True implies we want it to fail
     except FileNotFoundError:
-        click.echo(f"Command not found: {command[0] if isinstance(command, list) else command.split()[0]}", err=True)
+        if debug:
+            click.echo(f"Command not found: {command[0] if isinstance(command, list) else command.split()[0]}", err=True)
         raise
 
 def _log_step(step_name, status, message=None):
@@ -299,10 +304,14 @@ def _validate_secrets_manager_backup(repo_config):
 # Removed _get_gcs_config and _find_labeled_gcs_resources
 # Removed _gcs_cp and _get_git_repo_info (these were not used in setup_commands.py directly)
 
-def _load_global_config(silent=False):
+def _load_global_config(silent=False, debug=False):
     """
     Loads global devws configuration from ~/.config/devws/config.yaml or from WS_SYNC_CONFIG env var.
     Returns a dictionary of config values with defaults.
+    
+    Args:
+        silent: If True, suppresses informational output
+        debug: If True, shows debug output
     """
     config = {
         'local_sync_candidates': ['*.env'], # Default candidates
@@ -311,7 +320,7 @@ def _load_global_config(silent=False):
 
     # Determine the actual global config file path, respecting WS_SYNC_CONFIG env var
     actual_global_config_file = os.environ.get("WS_SYNC_CONFIG", GLOBAL_DEVWS_CONFIG_FILE)
-    if not silent:
+    if debug:
         click.echo(f"DEBUG: Using global config file: {actual_global_config_file}")
 
     if os.path.exists(actual_global_config_file):

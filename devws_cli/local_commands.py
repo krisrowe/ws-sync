@@ -446,11 +446,12 @@ def _get_dry_run_results(managed_files, base_gcs_path, gitignore_patterns, local
 @click.option('--force', is_flag=True, help='Overwrite local changes if conflicts exist.')
 @click.option('--dry-run', is_flag=True, help='Perform a dry run without actually pulling files, showing what would happen.')
 @click.option('--json', 'json_output', is_flag=True, help='Output dry run results as JSON.')
-def pull(force, dry_run, json_output):
+@click.option('--debug', is_flag=True, help='Show debug output including command execution details.')
+def pull(force, dry_run, json_output, debug):
     """
     Pulls all files listed in .ws-sync from GCS to the local project directory.
     """
-    locals_manager = LocalsManager(silent=json_output)
+    locals_manager = LocalsManager(silent=json_output, debug=debug)
     owner, repo_name = locals_manager.get_git_repo_info()
     if not owner or not repo_name:
         sys.exit(1)
