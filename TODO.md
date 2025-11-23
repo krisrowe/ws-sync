@@ -16,19 +16,19 @@ The core functionality of the repository is being transitioned from shell script
 ### 1. Finalize `devws` CLI Implementation & Testing
 
 - [x] **Implement `devws config` command:**
-    - [ ] Create a new command group `devws config`.
-    - [ ] Implement subcommands (e.g., `devws config set profile <name>`) to modify the `default_gcs_profile` in `~/.config/devws/config.yaml`.
-    - [ ] Implement a subcommand (e.g., `devws config view`) to display the current global config.
-    - [ ] **Note:** The global config should control the GCS profile for all commands on the current workstation. It is not configurable on a per-repo basis. It will default to "default" unless explicitly changed via `devws config` command.
-- [ ] **Enhance `devws setup`:**
-    - [ ] Add a step to check for `~/.config/devws/config.yaml`.
-    - [ ] If it doesn't exist, create the `~/.config/devws` directory.
-    - [ ] Copy `example.config.yaml` from the repo to `~/.config/devws/config.yaml` during `devws setup`.
-    - [ ] Log this action.
-- [ ] **Implement Global `devws` Configuration:** (Partially done in `utils.py`, but needs to be integrated with `devws setup` for creation)
-    - [ ] Create a mechanism to load global `devws` configuration (e.g., from `~/.config/devws/config.yaml`).
-    - [ ] Define a list of `local_sync_candidates` in this global config (e.g., `.env`, `config.local.json`).
-    - [ ] Consider other global configuration options: default GCS profile, default `PROJECT_ID`, logging level, preferred editor.
+    - [x] Create a new command group `devws config`.
+    - [x] Implement subcommands (e.g., `devws config set profile <name>`) to modify the `default_gcs_profile` in `~/.config/devws/config.yaml`.
+    - [x] Implement a subcommand (e.g., `devws config view`) to display the current global config.
+    - [x] **Note:** The global config should control the GCS profile for all commands on the current workstation. It is not configurable on a per-repo basis. It will default to "default" unless explicitly changed via `devws config` command.
+- [x] **Enhance `devws setup`:**
+    - [x] Add a step to check for `~/.config/devws/config.yaml`.
+    - [x] If it doesn't exist, create the `~/.config/devws` directory.
+    - [x] Copy `config.default.yaml` from the repo to `~/.config/devws/config.yaml` during `devws setup`.
+    - [x] Log this action.
+- [x] **Implement Global `devws` Configuration:** (Partially done in `utils.py`, but needs to be integrated with `devws setup` for creation)
+    - [x] Create a mechanism to load global `devws` configuration (e.g., from `~/.config/devws/config.yaml`).
+    - [x] Define a list of `local_sync_candidates` in this global config (e.g., `.env`, `config.local.json`).
+    - [x] Consider other global configuration options: default GCS profile, default `PROJECT_ID`, logging level, preferred editor.
 - [x] **Enhance `devws local init` logic:**
     - [x] When creating `.ws-sync`, automatically include file names from the global `local_sync_candidates` list that are also present in the current repository's `.gitignore` file.
     - [x] Report these added files as command-line output.
@@ -38,7 +38,7 @@ The core functionality of the repository is being transitioned from shell script
     - [x] These commands should now *always* use the `default_gcs_profile` loaded from the global config.
 - [x] **Implement `devws local pull` logic:** Pulls all files listed in `.ws-sync` from GCS to local.
 - [x] **Implement `devws local push` logic:** Pushes all files listed in `.ws-sync` from local to GCS.
-- [x] **Implement `devws local status` logic:** Shows sync status of managed files (local vs. GCS, .gitignore check).
+- [x] **Implement `devws local status` logic:** Refer to `EXTENSIBILITY.md` for the detailed plan.
 - [x] **Implement `devws local clear` logic:** Deletes all project-scoped files for the current repository from GCS. This will be a destructive command requiring user confirmation.
 - [x] **Review and Refine `devws_cli/cli.py` and `devws_cli/utils.py`:**
     - Ensure all logic from original `setup.sh`, `secrets.sh`, and `stuff/Makefile` (for GCS sync) is accurately translated and robust.
@@ -76,3 +76,10 @@ These are valuable ideas for future development to make `devws local` even more 
     - Support exclusion patterns (e.g., `!.env`) in `.ws-sync` to explicitly prevent warnings or suggestions for certain files, even if they match global candidates.
 - [ ] **Backup/Restore of `~/.config/devws/config.yaml` and GitHub/SSH Configurations:**
     - Analyze the viability and appropriateness of incorporating backup/restore functionality for `~/.config/devws/config.yaml` contents, GitHub authentication configurations, and SSH keys. This would involve considering what aspects are valuable, viable, and appropriate for automated management.
+- [ ] **`devws user-home` command:**
+    - Create a new command group `devws user-home` to manage non-repo-specific local configuration files.
+    - This command should manage files like `~/.env`, `~/.gemini/GEMINI.md`, and ssh keys.
+    - Implement `devws user-home status` to show whether these files are backed up to GCS.
+    - Implement `devws user-home backup` to back up these files to GCS.
+    - Implement `devws user-home restore` to restore these files from GCS.
+    - The `restore` command should be non-destructive and should not overwrite local files with pending changes. It should inform the user about the conflicts and provide a way to resolve them.

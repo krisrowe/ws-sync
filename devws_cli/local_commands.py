@@ -163,11 +163,21 @@ def _get_gcs_file_status(gcs_manager, gcs_object_path):
         else: # Try listing as a prefix
             list_output = gcs_manager.gcs_ls(f"{gcs_object_path}/", recursive=False)
             if list_output:
-                return {
-                    "status": "Present",
-                    "type": "Directory",
-                    "metadata": {}
-                }
+                # Verify if it's actually a directory.
+                # gsutil ls -d path/ might return path (the file) if it exists.
+                # A true directory should return path/ (with trailing slash) or have multiple items.
+                is_directory = False
+                for item in list_output:
+                    if item.endswith('/') or len(list_output) > 1:
+                        is_directory = True
+                        break
+                
+                if is_directory:
+                    return {
+                        "status": "Present",
+                        "type": "Directory",
+                        "metadata": {}
+                    }
 
     except Exception: # GCSManager.gcs_ls might raise if gsutil not found etc.
         pass # Not a directory, or empty directory, proceed to check if it's a file
@@ -190,7 +200,8 @@ def _get_gcs_file_status(gcs_manager, gcs_object_path):
                 "type": file_type,
                 "metadata": metadata
             }
-    except Exception: # GCSManager.gcs_stat will raise CalledProcessError if not found
+    except Exception as e: # GCSManager.gcs_stat will raise CalledProcessError if not found
+        click.echo(f"DEBUG: gcs_stat failed for {gcs_object_path}: {e}", err=True)
         pass # If both directory check and file check failed, then it's not present.
 
     return {

@@ -32,3 +32,60 @@ components:
 
 # Global settings (not tied to a specific component)
 project_id: "" # Your Google Cloud Project ID (used for secrets backup validation)
+
+# Configuration for syncing files/directories from the user's home directory (~) to GCS.
+# These items will be backed up/restored to the GCS `user-home/` path, maintaining their
+# relative structure from the home directory.
+#
+# Each item in the list should have:
+#   - path (required): The path to the file or directory relative to the user's home directory (~).
+#                      e.g., ".bashrc", ".ssh/config", ".config/some_app/"
+#   - type (required): "file" or "directory". Specifies how to handle the item.
+#
+# Example:
+# user_home_sync:
+#   - path: ".bashrc"
+#     type: "file"
+#   - path: ".ssh/config"
+#     type: "file"
+#   - path: ".config/devws/config.yaml"
+#     type: "file" # Note: devws-config.yaml itself is handled explicitly by user-config backup/restore
+#   - path: ".gemini"
+#     type: "directory"
+user_home_sync: []
+
+# Custom components that run after all core components.
+# These components are executed in the order they are defined.
+#
+# Each component can have the following properties:
+#   - id (required): A unique identifier for the component. This ID will be used as the filename for the corresponding
+#     shell script in the GCS `user-components/` folder (e.g., `install-my-tool.sh` if `id` is `install-my-tool`).
+#   - name (required): A human-readable name for the component.
+#   - description (required): A brief explanation of what the component does.
+#   - enabled (optional): Set to `false` to disable the component. Default is `true`.
+#   - idempotent_check (optional): A shell command that returns exit code 0 if the component
+#     is already completed/verified, and non-zero otherwise. If not provided, the component
+#     will always be executed unless explicitly disabled.
+#   - on_failure (optional): Defines behavior if the component's script fails.
+#     Options: "abort" (stop execution), "continue" (proceed to next component).
+#     Default is "continue".
+#   - tier (optional): Categorizes the component for execution priority.
+#     Options: 1 (core), 2 (common tools), 3 (custom). Default is 3.
+#
+# Example:
+# custom_components:
+#   - id: "install-my-tool"
+#     name: "Install My Custom Tool"
+#     description: "Installs a custom command-line tool via a shell script."
+#     enabled: true
+#     idempotent_check: "command -v my-tool"
+#     on_failure: "abort"
+#     tier: 3
+#   - id: "setup-dev-env"
+#     name: "Set Up Dev Environment"
+#     description: "Runs a custom script to configure environment variables and aliases."
+#     enabled: true
+#     idempotent_check: "grep -q 'MY_CUSTOM_VAR' ~/.bashrc"
+#     on_failure: "continue"
+#     tier: 3
+custom_components: [] # Initialize as an empty list

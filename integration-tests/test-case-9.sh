@@ -15,7 +15,7 @@ cd "$TEST_DIR"
 set_common_test_env "$TEST_DIR"
 
 # Ensure the temporary config file is clean
-rm -f "$WS_SYNC_CONFIG"
+rm -rf "$WS_SYNC_CONFIG"
 # Ensure no existing .ws-sync file in the current directory
 rm -f ".ws-sync"
 

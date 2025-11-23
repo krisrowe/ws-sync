@@ -14,7 +14,7 @@ cd "$TEST_DIR"
 set_common_test_env "$TEST_DIR"
 
 # Ensure the temporary config file is clean
-rm -f "$WS_SYNC_CONFIG"
+rm -rf "$WS_SYNC_CONFIG"
 # Ensure no existing .ws-sync file in the current directory
 rm -f ".ws-sync"
 
@@ -29,7 +29,14 @@ echo "Setup complete for Test Case 1."
 
 # --- Execution ---
 echo "Executing devws cli setup command..."
-(cd "$PROJECT_ROOT" && PYTHONPATH="$PROJECT_ROOT:$PYTHONPATH" python3 -m devws_cli.cli setup --component proj_local_config_sync)
+(
+    cd "$PROJECT_ROOT"
+    export PYTHONPATH="$PROJECT_ROOT:$PYTHONPATH"
+    echo "DEBUG: DEVWS_WS_SYNC_LABEL_KEY=$DEVWS_WS_SYNC_LABEL_KEY"
+    echo "DEBUG: Running gcloud projects list check..."
+    gcloud projects list --filter="labels.$DEVWS_WS_SYNC_LABEL_KEY=default" --format="value(project_id)"
+    python3 -m devws_cli.cli setup --component proj_local_config_sync
+)
 
 echo "Execution complete for Test Case 1."
 
@@ -37,13 +44,13 @@ echo "Execution complete for Test Case 1."
 echo "Verifying results for Test Case 1..."
 
 echo "DEBUG: Verifying WS_SYNC_CONFIG: $WS_SYNC_CONFIG"
-ls -l "$WS_SYNC_CONFIG"
+ls -l "$WS_SYNC_CONFIG_FILE"
 
 # Verify that the temporary config file ($WS_SYNC_CONFIG) is created and contains the project_id and bucket_name under the default profile.
-if ! grep -q "project_id: $YOUR_TEST_PROJECT_ID" "$WS_SYNC_CONFIG" || \
-   ! grep -q "bucket_name: $YOUR_TEST_BUCKET_NAME" "$WS_SYNC_CONFIG"; then
+if ! grep -q "project_id: $YOUR_TEST_PROJECT_ID" "$WS_SYNC_CONFIG_FILE" || \
+   ! grep -q "bucket_name: $YOUR_TEST_BUCKET_NAME" "$WS_SYNC_CONFIG_FILE"; then
     echo "ERROR: Temporary config file ($WS_SYNC_CONFIG) does not contain expected project_id or bucket_name." >&2
-    cat "$WS_SYNC_CONFIG" >&2
+    cat "$WS_SYNC_CONFIG_FILE" >&2
     exit 1
 fi
 echo "✅ Temporary config file ($WS_SYNC_CONFIG) contains expected project_id and bucket_name."

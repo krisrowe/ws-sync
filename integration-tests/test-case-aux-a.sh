@@ -14,7 +14,7 @@ cd "$TEST_DIR"
 set_common_test_env "$TEST_DIR"
 
 # Ensure the temporary config file is clean
-rm -f "$WS_SYNC_CONFIG"
+rm -rf "$WS_SYNC_CONFIG"
 # Ensure no existing .ws-sync file in the current directory
 rm -f ".ws-sync"
 
@@ -27,7 +27,7 @@ remove_gcs_labels "$YOUR_TEST_PROJECT_ID" "$YOUR_TEST_BUCKET_NAME"
 
 # Pre-configure the global config file
 echo "Pre-configuring global config file: $WS_SYNC_CONFIG"
-cat <<EOF > "$WS_SYNC_CONFIG"
+cat <<EOF > "$WS_SYNC_CONFIG_FILE"
 gcs_profiles:
   default:
     project_id: "$YOUR_TEST_PROJECT_ID"
@@ -47,12 +47,12 @@ echo "Verifying results for Test Case 3..."
 
 # Verify that the temporary config file ($WS_SYNC_CONFIG) still contains the project_id and bucket_name under the default profile.
 echo "DEBUG: Verifying WS_SYNC_CONFIG: $WS_SYNC_CONFIG"
-ls -l "$WS_SYNC_CONFIG"
+ls -l "$WS_SYNC_CONFIG_FILE"
 
-if ! grep -q "project_id: $YOUR_TEST_PROJECT_ID" "$WS_SYNC_CONFIG" || \
-   ! grep -q "bucket_name: $YOUR_TEST_BUCKET_NAME" "$WS_SYNC_CONFIG"; then
+if ! grep -q "project_id: $YOUR_TEST_PROJECT_ID" "$WS_SYNC_CONFIG_FILE" || \
+   ! grep -q "bucket_name: $YOUR_TEST_BUCKET_NAME" "$WS_SYNC_CONFIG_FILE"; then
     echo "ERROR: Temporary config file ($WS_SYNC_CONFIG) does not contain expected project_id or bucket_name." >&2
-    cat "$WS_SYNC_CONFIG" >&2
+    cat "$WS_SYNC_CONFIG_FILE" >&2
     exit 1
 fi
 echo "✅ Temporary config file ($WS_SYNC_CONFIG) contains expected project_id and bucket_name."

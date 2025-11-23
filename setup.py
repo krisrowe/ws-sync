@@ -7,8 +7,15 @@ setup(
     include_package_data=True,
     install_requires=[
         'Click',
-        'PyYAML', # Added PyYAML dependency
+        'PyYAML',
+        'google-cloud-secret-manager', # Runtime dependency for secrets commands
     ],
+    extras_require={
+        'tests': [
+            'pytest',
+            'pytest-mock',
+        ],
+    },
     entry_points={
         'console_scripts': [
             'devws = devws_cli.cli:devws',

@@ -11,16 +11,25 @@ STEP_STATUS = {}
 STEP_COUNT = 0
 
 # Global Configuration Paths
-GLOBAL_DEVWS_CONFIG_DIR = os.path.expanduser("~/.config/devws")
+# WS_SYNC_CONFIG env var now points to the CONFIG DIRECTORY (default: ~/.config/devws)
+GLOBAL_DEVWS_CONFIG_DIR = os.environ.get("WS_SYNC_CONFIG", os.path.expanduser("~/.config/devws"))
 GLOBAL_DEVWS_CONFIG_FILE = os.path.join(GLOBAL_DEVWS_CONFIG_DIR, "config.yaml")
 
-def _run_command(command, check=True, capture_output=False, shell=False, cwd=None, env=None, debug=False):
+def _run_command(command, check=True, capture_output=False, shell=False, cwd=None, env=None, debug=False, dry_run=False, is_idempotent_check=False):
     """
-    Wrapper for subprocess.run to execute shell commands.
+    Wrapper for subprocess.run to execute shell commands, with dry-run support.
     
     Args:
-        debug: If True, shows error messages when commands fail
+        debug: If True, shows error messages when commands fail.
+        dry_run: If True, simulates command execution without making changes.
+        is_idempotent_check: If True, the command will run even in dry_run mode.
     """
+    if dry_run and not is_idempotent_check:
+        command_str = ' '.join(command) if isinstance(command, list) else command
+        click.echo(f"  [DRY RUN] Would execute: {command_str}")
+        # Return a mock successful result
+        return subprocess.CompletedProcess(args=command, returncode=0, stdout="", stderr="")
+
     if env is None:
         env = os.environ.copy() # Use a copy of the current environment by default
 
@@ -64,6 +73,7 @@ def _log_step(step_name, status, message=None):
         "DISABLED": "🚫",
         "PARTIAL": "⚠️",
         "FAIL": "❌",
+        "READY": "🔵", # New status for dry-run
     }.get(status, "❓")
 
     status_text = {
@@ -74,6 +84,7 @@ def _log_step(step_name, status, message=None):
         "DISABLED": "DISABLED (configuration)",
         "PARTIAL": "PARTIAL (needs attention)",
         "FAIL": "FAILED",
+        "READY": "READY (dry-run)", # New status for dry-run
     }.get(status, "UNKNOWN")
 
     click.echo(f"{status_emoji} {step_name} - {status_text}")
@@ -97,9 +108,9 @@ def _print_final_report():
             "VERIFIED": "✅ VERIFIED",
             "SKIP": "⏭️  SKIP",
             "DISABLED": "🚫 DISABLED",
-            "PARTIAL": "⚠️  PARTIAL",
-            "FAIL": "❌ FAIL",
-        }.get(status, f"❓ {status}")
+                    "PARTIAL": "⚠️  PARTIAL",
+                    "FAIL": "❌ FAIL",
+                    "READY": "🔵 READY",        }.get(status, f"❓ {status}")
         click.echo(f"{step:<40} {status_display:<10}")
 
     completed_count = sum(1 for s in STEP_STATUS.values() if s == "COMPLETED")
@@ -175,20 +186,22 @@ def _load_config_from_repo(repo_dir):
     # Default values for repo-level config
     default_config = {
         "components": {
-            "github": {"enabled": True},
-            "google_cloud_cli": {"enabled": True},
-            "python": {"enabled": True, "min_version": "3.9"},
-            "nodejs": {"enabled": True, "min_version": "20"},
-            "cursor_agent": {"enabled": True},
-            "gemini_cli": {"enabled": True},
-            "env_setup": {"enabled": True},
+            "github": {"enabled": True, "tier": 2},
+            "google_cloud_cli": {"enabled": True, "tier": 2},
+            "python": {"enabled": True, "min_version": "3.9", "tier": 2},
+            "nodejs": {"enabled": True, "min_version": "20", "tier": 2},
+            "cursor_agent": {"enabled": True, "tier": 2},
+            "gemini_cli": {"enabled": True, "tier": 2},
+            "env_setup": {"enabled": True, "tier": 1},
             "proj_local_config_sync": {
                 "enabled": True,
                 "local_sync_candidates": ["*.env"],
-                "bucket_name": "" # Default empty
+                "bucket_name": "", # Default empty
+                "tier": 1
             },
         },
-        "project_id": "" # Default empty, now lowercase
+        "project_id": "", # Default empty, now lowercase
+        "custom_components": [] # New: Define default for custom components
     }
     config.update(default_config)
 
@@ -227,15 +240,24 @@ def _deep_update(base_dict, update_dict):
             base_dict[key] = value
     return base_dict
 
-def _update_bashrc(snippet, identifier):
+def _update_bashrc(snippet, identifier, dry_run=False):
     """
     Adds a snippet to ~/.bashrc if it's not already present, identified by a unique string.
     """
     bashrc_path = os.path.expanduser("~/.bashrc")
     try:
-        with open(bashrc_path, 'r+') as f:
+        with open(bashrc_path, 'r') as f:
             content = f.read()
-            if identifier not in content:
+            
+        if identifier not in content:
+            if dry_run:
+                click.echo(f"  [DRY RUN] Would append to {bashrc_path}:")
+                for line in snippet.splitlines():
+                    if line.strip():
+                        click.echo(f"    {line}")
+                return True # Indicate change would happen
+            
+            with open(bashrc_path, 'a') as f:
                 f.write(f"\n# {identifier}\n{snippet}\n")
                 return True
         return False
@@ -306,33 +328,63 @@ def _validate_secrets_manager_backup(repo_config):
 
 def _load_global_config(silent=False, debug=False):
     """
-    Loads global devws configuration from ~/.config/devws/config.yaml or from WS_SYNC_CONFIG env var.
-    Returns a dictionary of config values with defaults.
+    Loads global devws configuration in a layered approach:
+    1. Base config from devws_cli/config.default.yaml (tool's default).
+    2. User-specific config from GLOBAL_DEVWS_CONFIG_FILE (overrides base).
+
+    Returns a tuple (merged_config_dict, actual_global_config_file_path).
     
     Args:
         silent: If True, suppresses informational output
         debug: If True, shows debug output
     """
-    config = {
-        'local_sync_candidates': ['*.env'], # Default candidates
-        'default_gcp_project_id': '', # Default empty. Used by secrets backup.
-    }
+    # Initialize with an empty dictionary for merging
+    merged_config = {}
 
-    # Determine the actual global config file path, respecting WS_SYNC_CONFIG env var
-    actual_global_config_file = os.environ.get("WS_SYNC_CONFIG", GLOBAL_DEVWS_CONFIG_FILE)
+    # --- 1. Load Base Config (from devws_cli/config.default.yaml) ---
+    base_config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config.default.yaml")
+    if os.path.exists(base_config_path):
+        try:
+            with open(base_config_path, 'r') as f:
+                base_config = yaml.safe_load(f)
+                if base_config:
+                    _deep_update(merged_config, base_config)
+            if debug:
+                click.echo(f"DEBUG: Loaded base config from: {base_config_path}")
+        except yaml.YAMLError as e:
+            click.echo(f"⚠️ Warning: Error parsing base config file {base_config_path}: {e}", err=True)
+            # Continue with an empty base config if parsing fails
+
+    # --- 2. Load User Config (from GLOBAL_DEVWS_CONFIG_FILE) ---
+    actual_global_config_file = GLOBAL_DEVWS_CONFIG_FILE
     if debug:
-        click.echo(f"DEBUG: Using global config file: {actual_global_config_file}")
+        click.echo(f"DEBUG: Using user global config file: {actual_global_config_file}")
 
     if os.path.exists(actual_global_config_file):
         try:
             with open(actual_global_config_file, 'r') as f:
                 user_config = yaml.safe_load(f)
                 if user_config:
-                    config.update(user_config)
+                    _deep_update(merged_config, user_config) # User config overrides base
+            if debug:
+                click.echo(f"DEBUG: Loaded user global config from: {actual_global_config_file}")
         except yaml.YAMLError as e:
-            click.echo(f"⚠️ Warning: Error parsing global config file {actual_global_config_file}: {e}", err=True)
+            click.echo(f"⚠️ Warning: Error parsing user global config file {actual_global_config_file}: {e}", err=True)
+            # Continue with current merged_config if parsing fails
+    elif not silent:
+        if debug:
+            click.echo(f"DEBUG: User global config file not found at {actual_global_config_file}. Using defaults and base config.")
     
-    return config, actual_global_config_file
+    # Ensure default values are present after merging, if not set in either config
+    # This acts as a final fallback for essential keys
+    if 'gcs_profiles' not in merged_config:
+        merged_config['gcs_profiles'] = {}
+    if 'local_sync_candidates' not in merged_config:
+        merged_config['local_sync_candidates'] = ['*.env']
+    if 'default_gcp_project_id' not in merged_config:
+        merged_config['default_gcp_project_id'] = ''
+
+    return merged_config, actual_global_config_file
 
 def _get_ws_sync_label_key():
     """
@@ -340,3 +392,47 @@ def _get_ws_sync_label_key():
     Can be overridden by the DEVWS_WS_SYNC_LABEL_KEY environment variable.
     """
     return os.environ.get("DEVWS_WS_SYNC_LABEL_KEY", "ws-sync")
+
+def get_git_repo_info():
+    """
+    Extracts Git repository owner and name from the origin URL.
+    Returns (owner, repo_name) or (None, None) if not a Git repo or origin not found.
+    """
+    try:
+        # Check if current directory is a Git repository
+        _run_command(['git', 'rev-parse', '--is-inside-work-tree'], capture_output=True)
+    except subprocess.CalledProcessError:
+        click.echo("❌ Not inside a Git repository.", err=True)
+        return None, None
+
+    try:
+        origin_url = _run_command(['git', 'config', '--get', 'remote.origin.url'], capture_output=True).stdout.strip()
+    except subprocess.CalledProcessError:
+        click.echo("❌ Git origin URL not found.", err=True)
+        return None, None
+
+    # Regex to parse common Git URL formats (HTTPS and SSH)
+    # e.g., https://github.com/owner/repo.git or git@github.com:owner/repo.git
+    match = re.search(r'(?:github\.com|gitlab\.com|bitbucket\.org)[/:]([^/]+)/([^/.]+)(?:\.git)?', origin_url)
+    if match:
+        owner = match.group(1)
+        repo_name = match.group(2)
+        return owner, repo_name
+    else:
+        click.echo(f"❌ Could not parse owner and repo name from Git origin URL: {origin_url}", err=True)
+        return None, None
+
+def get_gcs_profile_config(profile_name='default', silent=False, debug=False):
+    """
+    Retrieves project_id and bucket_name for a given profile from global config.
+    Returns (project_id, bucket_name) or (None, None) if not found.
+    """
+    global_config, _ = _load_global_config(silent=silent, debug=debug)
+    
+    gcs_profiles = global_config.get('gcs_profiles', {})
+    profile_config = gcs_profiles.get(profile_name, {})
+
+    project_id = profile_config.get('project_id')
+    bucket_name = profile_config.get('bucket_name')
+
+    return project_id, bucket_name

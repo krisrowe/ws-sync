@@ -227,11 +227,27 @@ This is a personal development environment setup. If you find issues or want to 
 2.  **Fork and submit PR** - Contribute code improvements
 3.  **Share feedback** - Let me know what works well or needs improvement
 
+## Configuration
+
+The `devws` CLI uses a global configuration file to manage GCS profiles and other settings.
+
+*   **Default Location:** `~/.config/devws/config.yaml`
+*   **Environment Variable:** `WS_SYNC_CONFIG`
+    *   You can override the directory where `devws` looks for its configuration by setting the `WS_SYNC_CONFIG` environment variable.
+    *   Example: `export WS_SYNC_CONFIG=/path/to/custom/config/dir`
+    *   The CLI will look for `config.yaml` inside this directory.
+
 ## 🔮 Future Enhancements
 
 - **Direct GitHub Installation**: Simplify installation with a single command (similar to `npx`) that doesn't require cloning the repository first
 - **PyPI Publishing**: Publish to PyPI for easier installation via `pip install devws`
 - **Auto-update Mechanism**: Built-in command to update `devws` to the latest version
+- **Smart Management of Non-Portable Home Files**: For configuration files that are largely machine-specific (e.g., `~/.bashrc`, `~/.env`), implement functionality to manage specific entries or sections within the file, rather than overwriting the entire file. This would ensure portability of desired settings while respecting local system configurations.
+- **User Home Configuration Synchronization (Design Tension)**: While backup/restore of the `devws` tool's own configuration (`~/.config/devws/`) is planned, a generic solution for synchronizing arbitrary user home directories (e.g., `~/my-dev-folder/`) presents significant design challenges (e.g., merge conflicts, sensitive data handling, platform differences). This might best be addressed not by monolithic directory backups, but through optional or custom components that provide fine-grained, user-defined synchronization logic for specific files or subdirectories.
+
+## 🧪 Testing
+
+For details on the testing strategy, including integration tests (in `integration-tests/`) and a future plan for unit/mock testing with Pytest, please refer to the [TESTING.md](TESTING.md) document.
 
 ## 📄 License
 

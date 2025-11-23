@@ -154,7 +154,7 @@ class GCSProfileManager:
                 messages.append(f"ℹ️ GCS configuration from global config: Project ID='{config_project_id}', Bucket='{config_bucket_name}' for profile '{profile_name}'.")
                 chosen_project_id = config_project_id
                 chosen_bucket_name = config_bucket_name
-            else:
+            elif not dry_run:
                 # Try to derive from labeled resources
                 labeled_projects, labeled_buckets = self._find_labeled_gcs_resources(profile_name)
                 

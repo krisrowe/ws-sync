@@ -16,6 +16,7 @@ identify_project_id
 identify_bucket_name
 
 # Configure GCS test profile by directly writing to WS_SYNC_CONFIG
+mkdir -p "$WS_SYNC_CONFIG"
 configure_gcs_test_config "$YOUR_TEST_PROJECT_ID" "$YOUR_TEST_BUCKET_NAME" "$WS_SYNC_CONFIG"
 
 # Construct GCS_REPO_PATH using the new common function
@@ -27,12 +28,12 @@ GCS_REPO_PATH=$(get_test_gcs_path_prefix "$YOUR_TEST_BUCKET_NAME")
 
 # 1. file_exists_local_and_gcs_same.txt
 echo "local_same_content" > file_exists_local_and_gcs_same.txt
-gsutil cp file_exists_local_and_gcs_same.txt "$GCS_REPO_PATH/file_exists_local_and_gcs_same.txt" > /dev/null 2>&1
+gsutil cp file_exists_local_and_gcs_same.txt "$GCS_REPO_PATH/file_exists_local_and_gcs_same.txt"
 
 # 2. file_exists_local_and_gcs_diff.txt
 echo "local_diff_content" > file_exists_local_and_gcs_diff.txt
 echo "gcs_diff_content" > gcs_version_diff.txt
-gsutil cp gcs_version_diff.txt "$GCS_REPO_PATH/file_exists_local_and_gcs_diff.txt" > /dev/null 2>&1
+gsutil cp gcs_version_diff.txt "$GCS_REPO_PATH/file_exists_local_and_gcs_diff.txt"
 rm gcs_version_diff.txt
 
 # 3. file_exists_local_only.txt
@@ -40,13 +41,13 @@ echo "local_only_content" > file_exists_local_only.txt
 
 # 4. file_exists_gcs_only.txt
 echo "gcs_only_content" > gcs_file.txt
-gsutil cp gcs_file.txt "$GCS_REPO_PATH/file_exists_gcs_only.txt" > /dev/null 2>&1
+gsutil cp gcs_file.txt "$GCS_REPO_PATH/file_exists_gcs_only.txt"
 rm gcs_file.txt
 
 # 5. dir_exists_local_and_gcs/
 mkdir dir_exists_local_and_gcs
 echo "dir_file_content" > dir_exists_local_and_gcs/nested_file.txt
-gsutil cp dir_exists_local_and_gcs/nested_file.txt "$GCS_REPO_PATH/dir_exists_local_and_gcs/nested_file.txt" > /dev/null 2>&1
+gsutil cp dir_exists_local_and_gcs/nested_file.txt "$GCS_REPO_PATH/dir_exists_local_and_gcs/nested_file.txt"
 
 # 6. file_ignored_by_gitignore.log
 echo "ignored_content" > file_ignored_by_gitignore.log
@@ -169,7 +170,7 @@ echo "Verification complete for Test Case 10."
 
 # --- Teardown ---
 echo "Cleaning up Test Case 10..."
-gsutil -m rm -r "$GCS_REPO_PATH" > /dev/null 2>&1 || true # Clean up all GCS objects under the repo path
+gsutil -m rm -r "$GCS_REPO_PATH" || true # Clean up all GCS objects under the repo path
 
 cleanup_test_dir "$TEST_DIR"
 unset_common_test_env

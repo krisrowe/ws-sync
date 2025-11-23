@@ -14,7 +14,7 @@ cd "$TEST_DIR"
 set_common_test_env "$TEST_DIR"
 
 # Ensure the temporary config file is clean
-rm -f "$WS_SYNC_CONFIG"
+rm -rf "$WS_SYNC_CONFIG"
 # Ensure no existing .ws-sync file in the current directory
 rm -f ".ws-sync"
 
@@ -24,7 +24,7 @@ identify_bucket_name
 
 # Pre-configure the global config file with test resources
 echo "Pre-configuring global config file: $WS_SYNC_CONFIG"
-cat <<EOF > "$WS_SYNC_CONFIG"
+cat <<EOF > "$WS_SYNC_CONFIG_FILE"
 gcs_profiles:
   default:
     project_id: "$YOUR_TEST_PROJECT_ID"
