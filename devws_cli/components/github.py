@@ -3,47 +3,73 @@ import os
 import re
 from devws_cli.utils import _log_step, _run_command, _get_os_type, _update_bashrc
 
-def setup(config):
+def setup(config, dry_run=False):
     """
-    Manages the GitHub CLI and SSH setup.
+    Manages the GitHub CLI installation and authentication.
     """
     if not config.get("enabled", True):
-        _log_step("GitHub Setup (CLI + SSH)", "DISABLED")
+        _log_step("Github Setup", "DISABLED")
         return
 
-    click.echo("\nStep 1: GitHub Setup (CLI + SSH)")
-
-    # Install GitHub CLI
-    if not _run_command(['which', 'gh'], capture_output=True, check=False).returncode == 0:
-        click.echo("GitHub CLI not found. Installing gh cli...")
-        os_type = _get_os_type()
-        if os_type == "darwin":
-            try:
-                _run_command(['brew', 'install', 'gh'])
-                _log_step("GitHub CLI Installation", "COMPLETED")
-            except Exception:
-                _log_step("GitHub CLI Installation", "FAIL", "Please install GitHub CLI manually: https://cli.github.com/")
-        elif os_type == "linux-gnu":
-            try:
-                _run_command(['sudo', 'apt-get', 'update'])
-                _run_command(['sudo', 'apt-get', 'install', 'gh', '-y'])
-                _log_step("GitHub CLI Installation", "COMPLETED")
-            except Exception:
-                _log_step("GitHub CLI Installation", "FAIL", "Please install GitHub CLI manually: https://cli.github.com/")
+    click.echo("\nStep 1: Github Setup")
+    
+    # 1. Check if already installed (VERIFIED)
+    gh_installed = False
+    if _run_command(['which', 'gh'], capture_output=True, check=False).returncode == 0:
+        gh_installed = True
+        click.echo("GitHub CLI (gh) is already installed.")
+        
+        # Check authentication status
+        auth_status = _run_command(['gh', 'auth', 'status'], capture_output=True, check=False)
+        if auth_status.returncode == 0:
+             _log_step("Github Setup", "VERIFIED", "GitHub CLI installed and authenticated.")
+             return # Already verified, exit
         else:
-            _log_step("GitHub CLI Installation", "FAIL", "Unsupported OS for automatic GitHub CLI installation. Install manually.")
-    else:
-        click.echo("GitHub CLI is already installed.")
-        _log_step("GitHub CLI Installation", "VERIFIED")
+             click.echo("GitHub CLI installed but not authenticated.")
+             # If installed but not authenticated, we might want to proceed to auth step
+             # But for now, let's treat it as PARTIAL/VERIFIED for installation, but maybe not fully setup.
+             # The user requirement says "if the thing it installs is already installed and return VERIFIED".
+             # Authentication is an interactive step usually.
+             # Let's proceed to auth step if not dry_run.
+    
+    # 2. If not installed, check dry_run (READY)
+    if not gh_installed and dry_run:
+        _log_step("Github Setup", "READY", "Would install GitHub CLI.")
+        return
 
-    # Authenticate GitHub CLI
-    if _run_command(['gh', 'auth', 'status'], capture_output=True, check=False).returncode != 0:
-        click.echo("You are not authenticated with GitHub. Please log in now.")
+    # 3. Perform Installation (COMPLETED/FAILED)
+    if not gh_installed:
+        os_type = _get_os_type()
         try:
-            _run_command(['gh', 'auth', 'login'])
-            _log_step("GitHub CLI Authentication", "COMPLETED")
-        except Exception:
-            _log_step("GitHub CLI Authentication", "FAIL")
+            if os_type == "darwin":
+                _run_command(['brew', 'install', 'gh'])
+                _log_step("Github Setup", "COMPLETED", "Installed GitHub CLI.")
+            elif os_type == "linux-gnu":
+                _run_command(['sudo', 'apt-get', 'install', 'gh', '-y']) 
+                _log_step("Github Setup", "COMPLETED", "Installed GitHub CLI.")
+            else:
+                 _log_step("Github Setup", "FAIL", "Unsupported OS.")
+                 return
+        except Exception as e:
+            _log_step("Github Setup", "FAIL", f"Installation failed: {e}")
+            return
+
+    # 4. Authentication (Interactive)
+    # If we are here, it's installed (either was already or just installed).
+    # If dry_run, we should have returned already if not installed.
+    # If installed and dry_run, we returned VERIFIED if auth was good.
+    # If installed and NOT auth good, and dry_run:
+    if dry_run:
+         _log_step("Github Setup", "READY", "Would authenticate GitHub CLI.")
+         return
+
+    # Perform Auth
+    click.echo("Authenticating with GitHub...")
+    try:
+        _run_command(['gh', 'auth', 'login'], check=False) # Interactive
+        _log_step("Github Setup", "COMPLETED", "Authentication flow finished.")
+    except Exception as e:
+        _log_step("Github Setup", "FAIL", f"Authentication failed: {e}")
     else:
         click.echo("GitHub CLI is authenticated.")
         _log_step("GitHub CLI Authentication", "VERIFIED")

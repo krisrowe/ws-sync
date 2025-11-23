@@ -89,12 +89,12 @@ def setup(force, config_path, project_id, bucket_name, profile, component, dry_r
 
         # Filter by --component flag
         if component and comp_id not in component:
-            _log_step(f"({comp_tier}) {comp_name} Setup", "DISABLED", "Not specified via --component flag.")
+            _log_step(f"{comp_name} Setup", "DISABLED", "Not specified via --component flag.")
             continue
         
         # Check if enabled in config
         if not comp_settings.get("enabled", False):
-            _log_step(f"({comp_tier}) {comp_name} Setup", "DISABLED", "Disabled in config.")
+            _log_step(f"{comp_name} Setup", "DISABLED", "Disabled in config.")
             continue
 
         # Determine if already done (idempotency check)
@@ -105,10 +105,10 @@ def setup(force, config_path, project_id, bucket_name, profile, component, dry_r
                 # Pass dry_run=False here as idempotent checks MUST execute
                 result = _run_command(comp_settings["idempotent_check"], shell=True, capture_output=True, check=False, dry_run=False, is_idempotent_check=True)
                 if result.returncode == 0:
-                    _log_step(f"({comp_tier}) {comp_name} Setup", "VERIFIED", "Idempotency check passed (already done).")
+                    _log_step(f"{comp_name} Setup", "VERIFIED", "Idempotency check passed (already done).")
                     is_done = True
             except Exception as e:
-                _log_step(f"({comp_tier}) {comp_name} Setup", "FAIL", f"Idempotency check failed: {e}")
+                _log_step(f"{comp_name} Setup", "FAIL", f"Idempotency check failed: {e}")
                 click.echo(traceback.format_exc(), err=True)
                 # If idempotent check fails, and on_failure is 'abort', exit
                 if comp_settings.get("on_failure", "continue") == "abort":
@@ -117,11 +117,6 @@ def setup(force, config_path, project_id, bucket_name, profile, component, dry_r
         
         if is_done:
             continue # Already verified, move to next component
-
-        # If in dry-run mode, and not yet verified, mark as READY
-        if dry_run:
-            _log_step(f"({comp_tier}) {comp_name} Setup", "READY", "Would execute this component.")
-            continue # In dry-run, we just report READY and move on.
 
         # Dynamically import and execute the component
         try:
@@ -135,7 +130,7 @@ def setup(force, config_path, project_id, bucket_name, profile, component, dry_r
                     # The custom module name is just the comp_id (e.g., 'google_bugged')
                     component_module = importlib.import_module(comp_id)
                 except ImportError:
-                    _log_step(f"({comp_tier}) {comp_name} Setup", "FAIL", f"Component module '{comp_id}.py' not found in built-in or custom paths.")
+                    _log_step(f"{comp_name} Setup", "FAIL", f"Component module '{comp_id}.py' not found in built-in or custom paths.")
                     click.echo(f"Error: Component module '{comp_id}.py' not found. Ensure it exists and is correctly named in '{custom_components_dir}'.", err=True)
                     if comp_settings.get("on_failure", "continue") == "abort":
                         sys.exit(1)
@@ -146,10 +141,10 @@ def setup(force, config_path, project_id, bucket_name, profile, component, dry_r
                 component_module.setup(comp_settings, dry_run=dry_run)
                 # The component's setup function is responsible for calling _log_step
             else:
-                _log_step(f"({comp_tier}) {comp_name} Setup", "FAIL", "No setup() function found in component.")
+                _log_step(f"{comp_name} Setup", "FAIL", "No setup() function found in component.")
 
         except Exception as e:
-            _log_step(f"({comp_tier}) {comp_name} Setup", "FAIL", f"An error occurred during execution: {e}")
+            _log_step(f"{comp_name} Setup", "FAIL", f"An error occurred during execution: {e}")
             click.echo(traceback.format_exc(), err=True)
             if comp_settings.get("on_failure", "continue") == "abort":
                 sys.exit(1)

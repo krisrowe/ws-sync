@@ -1,7 +1,11 @@
 import click
 import os
 import sys
-from google.cloud import secretmanager # Requires 'google-cloud-secret-manager'
+try:
+    from google.cloud import secretmanager # Requires 'google-cloud-secret-manager'
+    HAS_SECRET_MANAGER = True
+except ImportError:
+    HAS_SECRET_MANAGER = False
 from devws_cli.utils import _load_global_config, get_gcs_profile_config
 
 @click.group()

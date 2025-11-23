@@ -3,27 +3,31 @@ import sys
 from devws_cli.utils import _log_step, _load_global_config
 from devws_cli.gcs_profile_manager import GCSProfileManager  # Updated import
 
-def setup(config):
+def setup(config, dry_run=False):
     """
-    Manages the GCS Synchronization Configuration.
+    Manages project local configuration synchronization.
     """
     if not config.get("enabled", True):
-        _log_step("GCS Synchronization Configuration", "DISABLED")
+        _log_step("Proj Local Config Sync Setup", "DISABLED")
         return
 
-    click.echo("\nStep 8: GCS Synchronization Configuration")
+    click.echo("\nStep 8: Proj Local Config Sync Setup")
     
-    # Reload global config as it might have been updated by _configure_gcs_sync
+    profile_name = config.get('profile', 'default')
+    project_id = config.get('project_id')
+    bucket_name = config.get('bucket_name')
+
+    # Perform Sync Configuration
+    # We call configure_gcs_sync which handles dry_run internally.
+    
+    # Reload global config
     global_config, actual_global_config_file = _load_global_config()
-
-    gcs_profile_manager = GCSProfileManager()  # Use GCSProfileManager instead
+    gcs_profile_manager = GCSProfileManager()
     
-    # Get project_id, bucket_name, and profile from component config (which might be overridden by CLI args)
-    arg_project_id = config.get("project_id")
-    arg_bucket_name = config.get("bucket_name")
-    profile_name = config.get("profile", "default") # Default to 'default' if not provided
-    dry_run = config.get("dry_run", False)  # Get dry_run flag
-
+    # Get args from config if not passed
+    arg_project_id = project_id
+    arg_bucket_name = bucket_name
+    
     updated_global_config, success, messages, error_message = gcs_profile_manager.configure_gcs_sync(arg_project_id, arg_bucket_name, profile_name, global_config, actual_global_config_file, dry_run)
     
     for msg in messages:
@@ -31,11 +35,48 @@ def setup(config):
 
     if error_message:
         click.echo(f"❌ {error_message}", err=True)
-        _log_step("GCS Synchronization Configuration", "FAIL", error_message)
+        _log_step("Proj Local Config Sync Setup", "FAIL", error_message)
         sys.exit(1)
     elif success:
-        _log_step("GCS Synchronization Configuration", "COMPLETED", f"GCS configured for profile 'default'.")
+        # Determine status based on messages
+        status = "VERIFIED"
+        if dry_run:
+            # If any message indicates a "Would" action (excluding verification checks), then we are READY (pending changes)
+            # "Would verify" is a read-only check that is skipped in dry-run, but doesn't imply a pending write.
+            pending_changes = [msg for msg in messages if "Would" in msg and "Would verify" not in msg and "Assuming bucket exists" not in msg]
+            if pending_changes:
+                status = "READY"
+        else:
+            # If we made changes (Labeled, Saved), then COMPLETED.
+            # If we only verified existing state (Already labeled), then VERIFIED.
+            # "Labeled" or "Saved" indicate action.
+            if any("Labeled" in msg or "Saved" in msg or "GCS configured" in msg for msg in messages):
+                 # Be careful, "Already labeled" contains "Labeled".
+                 # Check for specific success actions or exclude "Already".
+                 # "Project ... labeled" vs "Project ... is already labeled"
+                 # "GCS configured" is the success message for saving config.
+                 
+                 # Let's look at specific action messages from GCSProfileManager:
+                 # "Project ... labeled ..."
+                 # "Bucket ... labeled ..."
+                 # "GCS configured: ..."
+                 
+                 # And "Already" messages:
+                 # "... is already labeled ..."
+                 # "GCS configuration from global config ..."
+                 
+                 action_taken = False
+                 for msg in messages:
+                     if "labeled" in msg and "already" not in msg:
+                         action_taken = True
+                     if "GCS configured" in msg and "from global config" not in msg:
+                         action_taken = True
+                 
+                 if action_taken:
+                     status = "COMPLETED"
+
+        _log_step("Proj Local Config Sync Setup", status, f"GCS configured for profile '{profile_name}'.")
     else:
-        _log_step("GCS Synchronization Configuration", "FAIL", f"Failed to configure GCS for profile 'default'.")
-        sys.exit(1) # Should not happen if error_message is set for failures.
+        _log_step("Proj Local Config Sync Setup", "FAIL", f"Failed to configure GCS for profile '{profile_name}'.")
+        sys.exit(1)
     click.echo("-" * 60)

@@ -1,19 +1,20 @@
+
 import click
 import os
 from devws_cli.utils import _log_step, _update_bashrc, _validate_secrets_manager_backup
 
-def setup(config):
+def setup(config, dry_run=False):
     """
-    Manages the Environment Configuration setup.
+    Manages environment variable setup.
     """
     if not config.get("enabled", True):
-        _log_step("Environment Configuration Setup", "DISABLED")
+        _log_step("Env Setup Setup", "DISABLED")
         return
 
-    click.echo("\nStep 7: Environment Configuration Setup")
+    click.echo("\nStep 7: Env Setup Setup")
     ENV_FILE = os.path.expanduser("~/.env")
-    dry_run = config.get("dry_run", False)
-
+    
+    # Check if env file exists (VERIFIED/READY/FAIL)
     if os.path.exists(ENV_FILE):
         click.echo(f"Found environment file at {ENV_FILE}")
         _log_step("Environment File Detection", "VERIFIED")
@@ -22,7 +23,7 @@ def setup(config):
         if dry_run:
             _log_step("Environment File Detection", "READY", "Would prompt to create ~/.env file")
         else:
-            _log_step("Environment File Detection", "FAIL", "Create ~/.env file with your API keys.")
+             _log_step("Environment File Detection", "FAIL", "Create ~/.env file with your API keys.")
 
     bashrc_snippet = f"""
 # Load environment file
@@ -39,9 +40,5 @@ fi
     else:
         _log_step("Shell Startup Integration", "VERIFIED")
 
-    # Validate secrets backup
-    if not dry_run:
-        _validate_secrets_manager_backup(config) # Pass the component config, which includes project_id
-    else:
-        _log_step("Secrets Backup Validation", "READY", "Would validate secrets backup")
+
     click.echo("-" * 60)

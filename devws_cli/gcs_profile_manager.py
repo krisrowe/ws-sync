@@ -228,10 +228,13 @@ class GCSProfileManager:
         try:
             bucket_labels_output = _run_command(['gsutil', 'label', 'get', f'gs://{chosen_bucket_name}'], capture_output=True, check=False).stdout
             bucket_labels = {}
-            for line in bucket_labels_output.splitlines():
-                if ':' in line:
-                    k, v = line.split(':', 1)
-                    bucket_labels[k.strip()] = v.strip()
+            if "has no label configuration" not in bucket_labels_output:
+                try:
+                    parsed = yaml.safe_load(bucket_labels_output)
+                    if isinstance(parsed, dict):
+                        bucket_labels = parsed
+                except yaml.YAMLError:
+                    pass # Fallback or ignore if not parseable
             
             label_key = _get_ws_sync_label_key()
             if bucket_labels.get(label_key) and bucket_labels.get(label_key) != profile_name:
@@ -253,22 +256,27 @@ class GCSProfileManager:
             return global_config_dict, False, messages, error_message
 
         # Store in global config
-        if dry_run:
-            messages.append(f"🔍 [DRY RUN] Would save to config: Project ID='{chosen_project_id}', Bucket='{chosen_bucket_name}' to {actual_global_config_file}")
+        # Store in global config
+        current_profile_config = global_config_dict.get('gcs_profiles', {}).get(profile_name, {})
+        new_profile_config = {'project_id': chosen_project_id, 'bucket_name': chosen_bucket_name}
+
+        if current_profile_config == new_profile_config:
+            messages.append(f"✅ GCS configuration already up to date in {actual_global_config_file}")
             success = True
         else:
-            global_config_dict['gcs_profiles'][profile_name] = {
-                'project_id': chosen_project_id,
-                'bucket_name': chosen_bucket_name
-            }
-
-            try:
-                with open(actual_global_config_file, 'w') as f:
-                    yaml.safe_dump(global_config_dict, f, default_flow_style=False)
-                messages.append(f"✅ GCS configured: Project ID='{chosen_project_id}', Bucket='{chosen_bucket_name}' saved to {actual_global_config_file}")
+            if dry_run:
+                messages.append(f"🔍 [DRY RUN] Would save to config: Project ID='{chosen_project_id}', Bucket='{chosen_bucket_name}' to {actual_global_config_file}")
                 success = True
-            except IOError as e:
-                error_message = f"Error writing to global config file {actual_global_config_file}: {e}"
-                success = False
+            else:
+                global_config_dict['gcs_profiles'][profile_name] = new_profile_config
+
+                try:
+                    with open(actual_global_config_file, 'w') as f:
+                        yaml.safe_dump(global_config_dict, f, default_flow_style=False)
+                    messages.append(f"✅ GCS configured: Project ID='{chosen_project_id}', Bucket='{chosen_bucket_name}' saved to {actual_global_config_file}")
+                    success = True
+                except IOError as e:
+                    error_message = f"Error writing to global config file {actual_global_config_file}: {e}"
+                    success = False
 
         return global_config_dict, success, messages, error_message
