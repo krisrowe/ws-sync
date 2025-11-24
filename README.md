@@ -187,6 +187,42 @@ This is the recommended workaround. It involves creating a "fake" remote URL tha
 
 This will back up the files and folders listed in `.ws-sync` to GCS under the path `repos/fake-account-local-only/ClientX-config/`.
 
+#### Interim Solution: Manual `git bundle` Backup
+
+Pending the implementation of the `devws bundle` commands, you can manually perform a bundle backup of a local-only repository. This is the recommended approach for backing up versioned, sensitive, or customer-specific repositories.
+
+**Steps:**
+
+1.  **Navigate to your local git repository**:
+    ```bash
+    cd ~/ClientX-project
+    ```
+
+2.  **Create the bundle file** in a temporary directory:
+    ```bash
+    mkdir -p /tmp/devws-bundles
+    git bundle create /tmp/devws-bundles/ClientX-project.bundle --all
+    ```
+    *   `--all` ensures all branches and tags are included in the bundle.
+    *   The bundle file is named after the project directory for easy identification.
+
+3.  **Upload the bundle to GCS**:
+    ```bash
+    gsutil cp /tmp/devws-bundles/ClientX-project.bundle gs://your-bucket/bundles/
+    ```
+    *   We recommend using a dedicated `bundles/` folder in your GCS bucket to store these backups.
+
+4.  **To restore the repository**:
+    ```bash
+    # Download the bundle from GCS to a temporary folder
+    gsutil cp gs://your-bucket/bundles/ClientX-project.bundle /tmp/devws-bundles/
+
+    # Clone the repository from the bundle
+    git clone /tmp/devws-bundles/ClientX-project.bundle
+    ```
+
+This manual process provides a robust way to back up your entire local-only git repositories to GCS. For more details on this proposed feature, see the [Future Enhancements](#-future-enhancements) section.
+
 #### Option 2: Use a Custom Git Config Variable
 
 As an alternative to a fake remote, you could use `git config` to set a custom variable that `devws` could be enhanced to read. This is not currently implemented but is a potential future enhancement.
@@ -290,9 +326,10 @@ The `devws` CLI uses a global configuration file to manage GCS profiles and othe
 - **User Home Configuration Synchronization (Design Tension)**: While backup/restore of the `devws` tool's own configuration (`~/.config/devws/`) is planned, a generic solution for synchronizing arbitrary user home directories (e.g., `~/my-dev-folder/`) presents significant design challenges (e.g., merge conflicts, sensitive data handling, platform differences). This might best be addressed not by monolithic directory backups, but through optional or custom components that provide fine-grained, user-defined synchronization logic for specific files or subdirectories.
 - **Local-Only Repository Synchronization**: Introduce a `--local-only` flag to `devws local init`. This would configure a local git repository for GCS synchronization without requiring a real remote git repository. It would automatically register a fake remote origin (e.g., `https://local-only.devws/fake-account-local-only/<repo-name>.git`) to satisfy the GCS pathing logic, making it easier to back up local-only projects with sensitive information.
 - **Git Bundle Backup for Local-Only Repositories**: Introduce a new set of commands, `devws bundle push` and `devws bundle pull`, as an alternative to `devws local` for backing up "local-only, config-only" repositories. This would be for use cases where the entire repository (i.e., the versioned files) should be backed up, not just the unversioned configuration files.
-    -   **Mechanism**: Use `git bundle` to create a single, compressed bundle file of the repository.
-    -   **Storage**: Store the bundle files in a dedicated GCS folder, such as `gs://my-bucket/config-repos/`.
-    -   **Identification**: To identify which bundle file in GCS corresponds to a given local repository, `devws bundle` would use the git remote origin URL as a key, similar to `devws local`. A unique name for the repository could also be registered as metadata within the local `.git` database, if such a mechanism exists.
+    -   **Mechanism**: Use `git bundle create` to create a single, compressed bundle file of the repository in a temporary folder.
+    -   **Storage**: Store the bundle files in a dedicated GCS folder, such as `gs://my-bucket/bundles/`.
+    -   **Identification**: To identify which bundle file in GCS corresponds to a given local repository, `devws bundle` would use the git remote origin URL as a key, similar to `devws local`. A unique name for the repository could also be registered as metadata within the local `.git` database using `git config devws.bundle-name <unique-name>`.
+    -   **Restore**: `devws bundle pull` would download the bundle file to a temporary folder and then use `git clone` to restore the repository.
 
 ## 🧪 Testing
 
