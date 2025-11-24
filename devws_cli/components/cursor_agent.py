@@ -13,15 +13,15 @@ def setup(config, dry_run=False):
     click.echo("\nStep 3: Cursor Agent Setup")
     
     # 1. Check if already installed (VERIFIED)
-    # Cursor agent usually installs to ~/.cursor-server or we can check if the command exists if added to path
-    # For now, let's assume if the install script was run, it's verified.
-    # But we don't have a reliable way to check version easily without running it.
-    # Let's check if ~/.cursor-server exists as a proxy.
-    cursor_dir = os.path.expanduser("~/.cursor-server")
-    if os.path.exists(cursor_dir):
-         _log_step("Cursor Agent Setup", "VERIFIED", "Cursor agent directory found.")
-         return
-
+    # Check if cursor-agent is already installed
+    try:
+        result = _run_command(['which', 'cursor-agent'], capture_output=True, check=False)
+        if result.returncode == 0:
+            _log_step("Cursor Agent Setup", "VERIFIED", "Cursor Agent is already installed.")
+            return
+    except Exception:
+        pass  # Continue to installation if check fails
+    
     # 2. If not installed, check dry_run (READY)
     if dry_run:
         _log_step("Cursor Agent Setup", "READY", "Would install Cursor Agent.")
