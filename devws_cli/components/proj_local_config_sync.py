@@ -7,11 +7,13 @@ def setup(config, dry_run=False):
     """
     Manages project local configuration synchronization.
     """
+    category = config.get("category", "custom")
+    
     if not config.get("enabled", True):
-        _log_step("Proj Local Config Sync Setup", "DISABLED")
+        _log_step("Repo Local-Only Files Sync", "DISABLED", category=category)
         return
 
-    click.echo("\nStep 8: Proj Local Config Sync Setup")
+    click.echo("\nStep 8: Repo Local-Only Files Sync")
     
     profile_name = config.get('profile', 'default')
     project_id = config.get('project_id')
@@ -35,7 +37,7 @@ def setup(config, dry_run=False):
 
     if error_message:
         click.echo(f"❌ {error_message}", err=True)
-        _log_step("Proj Local Config Sync Setup", "FAIL", error_message)
+        _log_step("Repo Local-Only Files Sync", "FAIL", error_message, category)
         sys.exit(1)
     elif success:
         # Determine status based on messages
@@ -75,8 +77,8 @@ def setup(config, dry_run=False):
                  if action_taken:
                      status = "COMPLETED"
 
-        _log_step("Proj Local Config Sync Setup", status, f"GCS configured for profile '{profile_name}'.")
+        _log_step("Repo Local-Only Files Sync", status, f"GCS configured for profile '{profile_name}'.", category)
     else:
-        _log_step("Proj Local Config Sync Setup", "FAIL", f"Failed to configure GCS for profile '{profile_name}'.")
+        _log_step("Repo Local-Only Files Sync", "FAIL", f"Failed to configure GCS for profile '{profile_name}'.", category)
         sys.exit(1)
     click.echo("-" * 60)

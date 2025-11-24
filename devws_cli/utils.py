@@ -8,6 +8,7 @@ import yaml # Import yaml for global config
 
 # Global status tracking
 STEP_STATUS = {}
+STEP_CATEGORY = {}
 STEP_COUNT = 0
 
 # Global Configuration Paths
@@ -57,13 +58,20 @@ def _run_command(command, check=True, capture_output=False, shell=False, cwd=Non
             click.echo(f"Command not found: {command[0] if isinstance(command, list) else command.split()[0]}", err=True)
         raise
 
-def _log_step(step_name, status, message=None):
+def _log_step(step_name, status, message="", category=None):
     """
-    Logs the status of a setup step.
+    Logs a step with its status and optional message.
+    Args:
+        step_name: Name of the step
+        status: Status string (PASS, FAIL, SKIP, COMPLETED, VERIFIED, READY, DISABLED, PARTIAL)
+        message: Optional message to display
+        category: Optional category (core, common, development, custom)
     """
     global STEP_COUNT
     STEP_COUNT += 1
     STEP_STATUS[step_name] = status
+    if category:
+        STEP_CATEGORY[step_name] = category
 
     status_emoji = {
         "PASS": "✅",
@@ -93,25 +101,47 @@ def _log_step(step_name, status, message=None):
 
 def _print_final_report():
     """
-    Prints the final setup report.
+    Prints the final setup report with category subheadings.
     """
     click.echo("\n" + "=" * 60)
     click.echo("SETUP REPORT".center(60))
     click.echo("=" * 60)
-    click.echo(f"{ 'STEP':<40} {'STATUS':<10}")
+    click.echo(f"{'STEP':<40} {'STATUS':<10}")
     click.echo("-" * 60)
 
+    # Group steps by category
+    categorized_steps = {}
     for step, status in STEP_STATUS.items():
-        status_display = {
-            "PASS": "✅ PASS",
-            "COMPLETED": "✅ COMPLETED",
-            "VERIFIED": "✅ VERIFIED",
-            "SKIP": "⏭️  SKIP",
-            "DISABLED": "🚫 DISABLED",
+        category = STEP_CATEGORY.get(step, "custom")
+        if category not in categorized_steps:
+            categorized_steps[category] = []
+        categorized_steps[category].append((step, status))
+    
+    # Print in category order: core, common, development, custom
+    category_order = ["core", "common", "development", "custom"]
+    category_names = {
+        "core": "Core",
+        "common": "Common",
+        "development": "Development",
+        "custom": "Custom"
+    }
+    
+    for category in category_order:
+        if category in categorized_steps:
+            # Print category subheading
+            click.echo(f"\n{category_names[category].upper()}")
+            for step, status in categorized_steps[category]:
+                status_display = {
+                    "PASS": "✅ PASS",
+                    "COMPLETED": "✅ COMPLETED",
+                    "VERIFIED": "✅ VERIFIED",
+                    "SKIP": "⏭️  SKIP",
+                    "DISABLED": "🚫 DISABLED",
                     "PARTIAL": "⚠️  PARTIAL",
                     "FAIL": "❌ FAIL",
-                    "READY": "🔵 READY",        }.get(status, f"❓ {status}")
-        click.echo(f"{step:<40} {status_display:<10}")
+                    "READY": "🔵 READY",
+                }.get(status, f"❓ {status}")
+                click.echo(f"{step:<40} {status_display:<10}")
 
     completed_count = sum(1 for s in STEP_STATUS.values() if s == "COMPLETED")
     verified_count = sum(1 for s in STEP_STATUS.values() if s == "VERIFIED")

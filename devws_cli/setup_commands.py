@@ -57,7 +57,7 @@ def setup(force, config_path, project_id, bucket_name, profile, component, dry_r
     # Load combined configuration (base + user)
     global_config_dict, actual_global_config_file = _load_global_config()
 
-    # --- Consolidate and Sort Components by Tier ---
+    # --- Consolidate and Sort Components by Category and Tier ---
     all_components = []
     if "components" in global_config_dict:
         for comp_id, comp_settings in global_config_dict["components"].items():
@@ -65,11 +65,15 @@ def setup(force, config_path, project_id, bucket_name, profile, component, dry_r
                 "id": comp_id,
                 "name": comp_settings.get("name", comp_id.replace('_', ' ').title()),
                 "settings": comp_settings,
-                "tier": comp_settings.get("tier", 2) # Default tier 2
+                "tier": comp_settings.get("tier", 2), # Default tier 2
+                "category": comp_settings.get("category", "custom") # Default category custom
             })
-    all_components.sort(key=lambda x: x["tier"])
+    
+    # Sort by category priority (core, common, development, custom), then by tier
+    category_order = {"core": 0, "common": 1, "development": 2, "custom": 3}
+    all_components.sort(key=lambda x: (category_order.get(x["category"], 999), x["tier"]))
 
-    click.echo("\n--- Running Setup Components by Tier ---")
+    click.echo("\n--- Running Setup Components by Category ---")
 
     # --- Setup Custom Component Path ---
     custom_components_dir = os.path.join(GLOBAL_DEVWS_CONFIG_DIR, "components")
@@ -86,15 +90,16 @@ def setup(force, config_path, project_id, bucket_name, profile, component, dry_r
         comp_name = comp_data["name"]
         comp_settings = comp_data["settings"]
         comp_tier = comp_data["tier"]
+        comp_category = comp_data["category"]
 
         # Filter by --component flag
         if component and comp_id not in component:
-            _log_step(f"{comp_name} Setup", "DISABLED", "Not specified via --component flag.")
+            _log_step(f"{comp_name} Setup", "DISABLED", "Not specified via --component flag.", comp_category)
             continue
         
         # Check if enabled in config
         if not comp_settings.get("enabled", False):
-            _log_step(f"{comp_name} Setup", "DISABLED", "Disabled in config.")
+            _log_step(f"{comp_name} Setup", "DISABLED", "Disabled in config.", comp_category)
             continue
 
         # Determine if already done (idempotency check)
@@ -105,10 +110,10 @@ def setup(force, config_path, project_id, bucket_name, profile, component, dry_r
                 # Pass dry_run=False here as idempotent checks MUST execute
                 result = _run_command(comp_settings["idempotent_check"], shell=True, capture_output=True, check=False, dry_run=False, is_idempotent_check=True)
                 if result.returncode == 0:
-                    _log_step(f"{comp_name} Setup", "VERIFIED", "Idempotency check passed (already done).")
+                    _log_step(f"{comp_name} Setup", "VERIFIED", "Idempotency check passed (already done).", comp_category)
                     is_done = True
             except Exception as e:
-                _log_step(f"{comp_name} Setup", "FAIL", f"Idempotency check failed: {e}")
+                _log_step(f"{comp_name} Setup", "FAIL", f"Idempotency check failed: {e}", comp_category)
                 click.echo(traceback.format_exc(), err=True)
                 # If idempotent check fails, and on_failure is 'abort', exit
                 if comp_settings.get("on_failure", "continue") == "abort":
@@ -130,7 +135,7 @@ def setup(force, config_path, project_id, bucket_name, profile, component, dry_r
                     # The custom module name is just the comp_id (e.g., 'google_bugged')
                     component_module = importlib.import_module(comp_id)
                 except ImportError:
-                    _log_step(f"{comp_name} Setup", "FAIL", f"Component module '{comp_id}.py' not found in built-in or custom paths.")
+                    _log_step(f"{comp_name} Setup", "FAIL", f"Component module '{comp_id}.py' not found in built-in or custom paths.", comp_category)
                     click.echo(f"Error: Component module '{comp_id}.py' not found. Ensure it exists and is correctly named in '{custom_components_dir}'.", err=True)
                     if comp_settings.get("on_failure", "continue") == "abort":
                         sys.exit(1)
@@ -141,10 +146,10 @@ def setup(force, config_path, project_id, bucket_name, profile, component, dry_r
                 component_module.setup(comp_settings, dry_run=dry_run)
                 # The component's setup function is responsible for calling _log_step
             else:
-                _log_step(f"{comp_name} Setup", "FAIL", "No setup() function found in component.")
+                _log_step(f"{comp_name} Setup", "FAIL", "No setup() function found in component.", comp_category)
 
         except Exception as e:
-            _log_step(f"{comp_name} Setup", "FAIL", f"An error occurred during execution: {e}")
+            _log_step(f"{comp_name} Setup", "FAIL", f"An error occurred during execution: {e}", comp_category)
             click.echo(traceback.format_exc(), err=True)
             if comp_settings.get("on_failure", "continue") == "abort":
                 sys.exit(1)

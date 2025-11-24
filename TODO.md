@@ -83,3 +83,11 @@ These are valuable ideas for future development to make `devws local` even more 
     - Implement `devws user-home backup` to back up these files to GCS.
     - Implement `devws user-home restore` to restore these files from GCS.
     - The `restore` command should be non-destructive and should not overwrite local files with pending changes. It should inform the user about the conflicts and provide a way to resolve them.
+- [ ] **Categorized Setup Output with Centralized Reporting:**
+    - Refactor the setup component architecture to use a centralized reporting system.
+    - Components should return status and messages (array of guidance/errors/warnings) instead of directly calling `_log_step`.
+    - The main `setup_commands.py` loop should collect these results and control formatting/grouping.
+    - Add optional `category` attribute to components in `config.yaml` (e.g., "core", "common", "development", "custom").
+    - Group components by category in the final SETUP REPORT table with subheadings.
+    - Display components in order: Core, Common, Development, Custom.
+    - This will provide better separation of concerns and more flexible output formatting.

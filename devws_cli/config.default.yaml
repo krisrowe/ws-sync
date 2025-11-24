@@ -4,23 +4,9 @@
 # You can enable or disable specific components and customize their settings.
 
 components:
-  github:
-    enabled: true
-  google_cloud_cli:
-    enabled: true
-  python:
-    enabled: true
-    min_version: "3.9"
-  nodejs:
-    enabled: true
-    min_version: "20"
-  cursor_agent:
-    enabled: true
-  gemini_cli:
-    enabled: true
-  env_setup:
-    enabled: true
   proj_local_config_sync:
+    name: "Repo Local-Only Files Sync"
+    category: "core"
     enabled: true
     local_sync_candidates:
       - "*.env"
@@ -29,6 +15,36 @@ components:
       # - "my_project_config.json"
       # - "secrets/*.txt"
     bucket_name: "" # Your Google Cloud Storage bucket name for synchronization
+  env_setup:
+    name: "Environment Setup"
+    category: "core"
+    enabled: true
+  nodejs:
+    name: "Node.js"
+    category: "common"
+    enabled: true
+    min_version: "20"
+  python:
+    name: "Python"
+    category: "common"
+    enabled: true
+    min_version: "3.9"
+  cursor_agent:
+    name: "Cursor Agent"
+    category: "development"
+    enabled: true
+  gemini_cli:
+    name: "Gemini CLI"
+    category: "development"
+    enabled: true
+  github:
+    name: "GitHub CLI"
+    category: "development"
+    enabled: true
+  google_cloud_cli:
+    name: "Google Cloud CLI"
+    category: "development"
+    enabled: true
 
 # Global settings (not tied to a specific component)
 project_id: "" # Your Google Cloud Project ID (used for secrets backup validation)

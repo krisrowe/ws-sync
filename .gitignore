@@ -9,4 +9,4 @@ __pycache__/
 build/
 devws.egg-info/
 config.yaml
-*.temp.py
+*.temp.sh

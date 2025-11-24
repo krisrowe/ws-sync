@@ -49,10 +49,11 @@ class GCSManager:
         """
         command = ['gsutil']
         if not debug:
-            command.append('-q') # Quiet mode unless debug is enabled
+            command.append('-q') # Quiet mode
+        command.append('cp') # Add 'cp' command
         if recursive:
             command.append('-r')
-        command.extend(['cp', source, destination])
+        command.extend([source, destination])
         return _run_command(command, check=True, debug=debug)
 
     def gcs_rm(self, path, recursive=False, debug=False):
