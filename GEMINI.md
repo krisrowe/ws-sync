@@ -4,7 +4,7 @@ This document provides context and guidelines for AI assistants (like Gemini) wo
 
 ## Project Overview
 
-This is the `ws-sync` repository, which provides a Python CLI tool called `devws` for managing ChromeOS development workstation setup and project-specific configuration synchronization.
+This is the `ws-sync` repository, which provides a Python CLI tool called `devws` for managing Linux development workstation setup and project-specific configuration synchronization.
 
 ## Key Commands
 

@@ -43,7 +43,7 @@ def setup(force, config_path, project_id, bucket_name, profile, component, dry_r
     if dry_run:
         click.echo("🔍 DRY RUN MODE - No changes will be made".center(60))
         click.echo("=" * 60)
-    click.echo("Starting ChromeOS Development Environment Setup".center(60))
+    click.echo("Starting Linux Development Environment Setup".center(60))
     click.echo(f"Repository (determined): {REPO_DIR}".center(60))
     click.echo("-" * 60)
 

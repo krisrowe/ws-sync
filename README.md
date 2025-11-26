@@ -99,7 +99,7 @@ ws-sync/
 
 These commands manage your overall development workstation setup.
 
-*   **`devws setup`**: Run the full setup process for your ChromeOS development environment. It's idempotent and self-healing.
+*   **`devws setup`**: Run the full setup process for your Linux development environment. It's idempotent and self-healing.
     ```bash
     devws setup [--force] [--config-path <path>]
     ```
@@ -307,7 +307,7 @@ For `devws local` commands, create a `.ws-sync` file in the root of your Git rep
 
 ## 🎯 Prerequisites
 
--   **ChromeOS** with Linux development environment enabled (Crostini)
+-   **Linux** (Debian-based distributions recommended, e.g., Debian, Ubuntu, or ChromeOS with Linux development environment)
 -   **Internet connection** for downloading tools and packages
 -   **GitHub account** (for SSH key setup and authentication)
 -   **Google Cloud account** (optional, for `devws env` and `devws local` functionality)
@@ -355,4 +355,4 @@ This project is for personal use. Feel free to adapt it for your own development
 
 ---
 
-**Note**: This CLI is specifically designed for ChromeOS development environments. While it may work on other Linux distributions, it's optimized for Crostini/gLinux VMs running on ChromeOS.
+**Note**: This CLI is designed for Linux development environments. It works on any Linux distribution with Python 3.7+ and standard package managers.

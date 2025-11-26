@@ -10,7 +10,7 @@ from devws_cli.secrets_commands import secrets # New: Import secrets command gro
 @click.group()
 def devws():
     """
-    A comprehensive CLI for setting up and managing ChromeOS development environments.
+    A comprehensive CLI for setting up and managing Linux development environments.
 
     devws streamlines workstation setup and project-specific configuration management.
     """
