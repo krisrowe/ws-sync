@@ -1,4 +1,4 @@
-# Linux Development Workstation Configuration & Sync CLI
+# Linux Development Workstation Config & Sync CLI
 
 `devws` is a comprehensive command-line interface designed to streamline the setup of your Linux development environment and manage project-specific configurations across multiple workstations. It unifies core workstation setup tasks with intelligent, project-scoped configuration synchronization.
 
