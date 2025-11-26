@@ -153,6 +153,20 @@ These commands manage project-specific, non-version-controlled files (like `.env
     ```
     *   `--profile`: Specifies the GCS profile to use.
 
+#### How `devws local` Identifies Your Repository {#repo-identification}
+
+When you run `devws local push` or `devws local pull`, the tool needs a unique and consistent way to identify your project's backup in your GCP project. This ensures that when you restore your configuration on a different machine, you get the correct files for the correct project.
+
+`devws` achieves this by using the following Git command:
+
+```bash
+git config --get remote.origin.url
+```
+
+This command reads the URL of your repository's `origin` remote directly from your local Git configuration, which is stored in the `.git/config` file within your repository's directory. This URL serves as the unique identifier to construct the path for your backup in your GCP project.
+
+This approach ensures that as long as your repository is cloned from the same remote source, `devws` will always be able to locate its corresponding backup in your GCP project.
+
 ### 3. Advanced Usage: Backing Up Local-Only Repositories (Interim Solution)
 
 In some cases, you may want to use `devws local` to back up project folders that contain sensitive or customer-specific information without pushing the entire project to a public or private git hosting service. For example, you might have a local folder (e.g., `~/ClientX`) with customer-specific configurations and tools that you want to keep synchronized across your workstations but not on GitHub.
