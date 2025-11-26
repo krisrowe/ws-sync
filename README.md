@@ -24,7 +24,7 @@ If you have cloned this repository locally:
 
 1. **Clone the repository:**
    ```bash
-   git clone https://github.com/github-user/ws-sync.git
+   git clone https://github.com/krisrowe/ws-sync.git
    cd ws-sync
    ```
 
@@ -46,7 +46,7 @@ If you don't have the repository cloned:
 
 1. **Try installing with pip:**
    ```bash
-   pip install git+https://github.com/github-user/ws-sync.git
+   pip install git+https://github.com/krisrowe/ws-sync.git
    ```
 
 2. **If you encounter an "externally-managed-environment" error:**
