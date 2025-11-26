@@ -67,7 +67,7 @@ echo "Execution complete for Test Case 3."
 echo "Verifying results for Test Case 3..."
 
 # Verify the file now exists in the GCS bucket and its content matches
-GCS_CONTENT=$(gsutil cat "gs://$YOUR_TEST_BUCKET_NAME/projects/github-user/ws-sync/.env")
+GCS_CONTENT=$(gsutil cat "gs://$YOUR_TEST_BUCKET_NAME/projects/test-user/test-repo/.env")
 LOCAL_CONTENT=$(cat .env)
 
 if [ "$GCS_CONTENT" != "$LOCAL_CONTENT" ]; then
@@ -82,7 +82,7 @@ echo "Verification complete for Test Case 3."
 
 # --- Teardown ---
 echo "Cleaning up Test Case 3..."
-gsutil rm "gs://$YOUR_TEST_BUCKET_NAME/projects/github-user/ws-sync/.env"
+gsutil rm "gs://$YOUR_TEST_BUCKET_NAME/projects/test-user/test-repo/.env"
 cleanup_test_dir "$TEST_DIR"
 unset_common_test_env
 
