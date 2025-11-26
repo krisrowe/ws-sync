@@ -153,7 +153,7 @@ These commands manage project-specific, non-version-controlled files (like `.env
     ```
     *   `--profile`: Specifies the GCS profile to use.
 
-#### How `devws local` Identifies Your Repository {#repo-identification}
+#### <a name="repo-identification"></a>How your backup of local-only config files is tied back to your repository
 
 When you run `devws local push` or `devws local pull`, the tool needs a unique and consistent way to identify your project's backup in your GCP project. This ensures that when you restore your configuration on a different machine, you get the correct files for the correct project.
 
