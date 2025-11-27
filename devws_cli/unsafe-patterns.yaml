@@ -1,0 +1,18 @@
+# Default generic regex patterns for `devws safecheck`.
+# These patterns are designed to detect common sensitive information.
+#
+# IMPORTANT: These patterns use regex to avoid containing the literal sensitive string
+# they are designed to detect. This minimizes the risk of the pattern's own definition
+# triggering a false positive when this file itself is scanned.
+#
+# Users can optionally set up an override for this file in their own config,
+# but by default, these patterns are always applied as part of the tool's core checks.
+---
+generic_patterns:
+  - "\\bghp_[0-9a-zA-Z]{36}\\b"                               # GitHub Token (exact 36 chars)
+  - "[-]{5}BEGIN[ ]RSA[ ]PRIVATE[ ]KEY[-]{5}"                # RSA Private Key
+  - "[-]{5}BEGIN[ ]OPENSSH[ ]PRIVATE[ ]KEY[-]{5}"            # OpenSSH Private Key
+  # Generic API Key (32+ chars total) - Looks for sequences of 8+ alphanumeric characters,
+  # possibly separated by single hyphen, underscore, or dot. This version uses word boundaries
+  # to avoid matching substrings of legitimate words/identifiers.
+  - "\\b[a-zA-Z0-9]{8}(?:[-_.][a-zA-Z0-9]{8}){3,}\\b"
