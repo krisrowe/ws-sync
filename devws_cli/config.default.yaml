@@ -138,3 +138,15 @@ home_backup:
 #     on_failure: "continue"
 #     tier: 3
 custom_components: [] # Initialize as an empty list
+
+# Configuration for the `devws precommit` command.
+precommit:
+  # If 'false', only patterns defined here will be used.
+  # If 'true' (default), these patterns extend the built-in generic patterns.
+  extend_built_in_patterns: true
+  # A list of custom regex patterns to check for. These patterns are defined by the user
+  # in their personal ~/.config/devws/config.yaml to extend the tool's default checks.
+  # Example:
+  # unsafe_patterns:
+  #   - "employeeID-[0-9]{7}"
+  unsafe_patterns: []
