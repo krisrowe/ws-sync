@@ -7,7 +7,6 @@ This document outlines the remaining tasks to complete the integration of the 's
 The core functionality of the repository is being transitioned from shell scripts and Makefiles to a unified Python-based CLI named `devws`.
 
 ### Current Status:
-- `MERGE-ANALYSIS.md` is updated with the new architectural direction.
 - `devws_cli` Python project structure is created.
 - `devws` CLI is installed locally and the `setup`, `env` (backup/restore), `local` (pull/push/status/init), and `clean` commands are implemented in `devws_cli/cli.py`.
 
@@ -38,7 +37,7 @@ The core functionality of the repository is being transitioned from shell script
     - [x] These commands should now *always* use the `default_gcs_profile` loaded from the global config.
 - [x] **Implement `devws local pull` logic:** Pulls all files listed in `.ws-sync` from GCS to local.
 - [x] **Implement `devws local push` logic:** Pushes all files listed in `.ws-sync` from local to GCS.
-- [x] **Implement `devws local status` logic:** Refer to `EXTENSIBILITY.md` for the detailed plan.
+- [x] **Implement `devws local status` logic:** Shows sync status of managed files.
 - [x] **Implement `devws local clear` logic:** Deletes all project-scoped files for the current repository from GCS. This will be a destructive command requiring user confirmation.
 - [x] **Review and Refine `devws_cli/cli.py` and `devws_cli/utils.py`:**
     - Ensure all logic from original `setup.sh`, `secrets.sh`, and `stuff/Makefile` (for GCS sync) is accurately translated and robust.
@@ -76,13 +75,13 @@ These are valuable ideas for future development to make `devws local` even more 
     - Support exclusion patterns (e.g., `!.env`) in `.ws-sync` to explicitly prevent warnings or suggestions for certain files, even if they match global candidates.
 - [ ] **Backup/Restore of `~/.config/devws/config.yaml` and GitHub/SSH Configurations:**
     - Analyze the viability and appropriateness of incorporating backup/restore functionality for `~/.config/devws/config.yaml` contents, GitHub authentication configurations, and SSH keys. This would involve considering what aspects are valuable, viable, and appropriate for automated management.
-- [ ] **`devws user-home` command:**
-    - Create a new command group `devws user-home` to manage non-repo-specific local configuration files.
+- [ ] **`devws home dotfiles` command:**
+    - Create a new command group `devws home dotfiles` to manage non-repo-specific local configuration files.
     - This command should manage files like `~/.env`, `~/.gemini/GEMINI.md`, and ssh keys.
-    - Implement `devws user-home status` to show whether these files are backed up to GCS.
-    - Implement `devws user-home backup` to back up these files to GCS.
-    - Implement `devws user-home restore` to restore these files from GCS.
-    - The `restore` command should be non-destructive and should not overwrite local files with pending changes. It should inform the user about the conflicts and provide a way to resolve them.
+    - [x] Implement `devws home dotfiles status` to show whether these files are backed up to GCS.
+    - [x] Implement `devws home dotfiles push` to back up these files to GCS.
+    - [x] Implement `devws home dotfiles pull` to restore these files from GCS.
+    - The `pull` command should be non-destructive and should not overwrite local files with pending changes. It should inform the user about the conflicts and provide a way to resolve them.
 - [ ] **Categorized Setup Output with Centralized Reporting:**
     - Refactor the setup component architecture to use a centralized reporting system.
     - Components should return status and messages (array of guidance/errors/warnings) instead of directly calling `_log_step`.
@@ -91,3 +90,24 @@ These are valuable ideas for future development to make `devws local` even more 
     - Group components by category in the final SETUP REPORT table with subheadings.
     - Display components in order: Core, Common, Development, Custom.
     - This will provide better separation of concerns and more flexible output formatting.
+- [x] **Refactor and de-duplicate helper functions:**
+    - The helper functions `_get_file_hash`, `_get_gcs_file_status`, `_get_local_file_status`, and `_generate_ascii_table` were successfully moved to `utils.py` to be used by both `local_commands.py` and `home_commands.py`.
+    - All command implementations have been restored and updated to use the centralized helper functions.
+- [ ] **Review ALTERNATIVES.md to establish project clarity:**
+    - Analyze the newly created `ALTERNATIVES.md` file.
+    - Use the analysis to refine the project's mission, scope, and unique value proposition in the `README.md`.
+- [ ] **Research GitHub Codespaces / Dev Containers for integration opportunities:**
+    - Investigate how `devws` could be used to bootstrap or manage a cloud-based development environment defined by `devcontainer.json`.
+    - Explore if `devws` can complement or simplify the setup within a Codespace.
+- [ ] **Expand `devws config backup` to include the entire `~/.config/devws` directory:**
+    - The `devws config backup` command currently only backs up the `config.yaml` file.
+    - This should be expanded to back up the entire `~/.config/devws` directory, including any custom component scripts, the `startup.sh`, and other assets. This would be a recursive directory backup to GCS.
+- [x] **Implement `devws precommit` command:**
+    - Create a new command to scan local files for sensitive information.
+    - **Scope**: Scan all tracked files and all untracked (non-ignored) files.
+    - **Dynamic Sensitive Strings**:
+        - Automatically derive sensitive values like the username (from `/home/[username]`), user's first/last names (from `git config user.name`), and user's email (from `git config user.email`).
+        - Automatically parse `.env` files in the project to extract sensitive values.
+    - **Configurable Patterns**: Allow users to define custom regex patterns in a `precommit.unsafe_patterns` list within `~/.config/devws/config.yaml`. The default config will keep this list empty.
+    - **Built-in Generic Patterns**: Include checks for common secret formats (AWS keys, Stripe keys, private keys, high-entropy strings) loaded from `unsafe-patterns.yaml`.
+    - **Reporting**: Report the sensitive value, file path, line number, and the line content where it was found.

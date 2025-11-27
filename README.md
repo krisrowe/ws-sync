@@ -2,11 +2,17 @@
 
 `devws` is a comprehensive command-line interface designed to streamline the setup of your Linux development environment and manage project-specific configurations across multiple workstations. It unifies core workstation setup tasks with intelligent, project-scoped configuration synchronization.
 
+## Project Status and Alternatives
+
+This project is an opinionated tool built to solve a specific developer's workflow. Its use case and unique value proposition have yet to be thoroughly investigated and evaluated against the many excellent, mature alternatives in the developer tooling ecosystem.
+
+For a detailed analysis of how `devws` compares to mainstream tools like Chezmoi, Ansible, and others, please see the **[analysis of alternatives](ALTERNATIVES.md)**.
+
 ## ✨ Features
 
 ### Core Workstation Configuration (`devws` commands)
 - **🔄 Idempotent Setup**: `devws setup` can be run repeatedly to set up, extend, or repair your environment without issues.
-- **🔐 Secure Global .env Management**: `devws env backup` and `devws env restore` securely manage your global `~/.env` file using Google Secrets Manager.
+- **🔐 Secure Cloud Sync & Backup**: `devws` provides multiple mechanisms to keep your environment safe and consistent, using Google Cloud as a backend. This includes full home directory backups, synchronization of specific dotfiles, and management of the tool's own configuration.
 - **🛠️ Tool Installation**: Automates installation of essential CLIs (GitHub, Google Cloud, Cursor, Gemini) and language runtimes (Python, Node.js).
 - **⚙️ Configurable**: Customize setup via a `config.yaml` file.
 
@@ -66,60 +72,103 @@ devws local pull --help
 ```
     This will guide you through setting up your core development environment.
 
-## 📁 File Structure
+## 📁 How It Works
+
+`devws` operates on a few key files and concepts:
+
+*   **Shell Integration**: Running `devws setup` will integrate a startup script into your shell (e.g., `~/.bashrc`). This script manages your `PATH`, NVM, and other environment needs on every new terminal session.
+*   **Global Configuration (`~/.config/devws/config.yaml`)**: This is your personal, central configuration file for `devws`. You can edit it to define which setup components to run, which dotfiles to sync, and how backups should behave.
+*   **Project-Specific Sync File (`.ws-sync`)**: When you run `devws local init` in a project directory, it creates this file. You list project-specific files (like a project's `.env`) here to be managed by `devws local push` and `pull`.
+
+## 🌳 CLI Command Tree
 
 ```
-ws-sync/
-├── devws_cli/            # Python package for the devws CLI
-│   ├── __init__.py
-│   ├── cli.py            # Main CLI entry point
-│   ├── setup_commands.py # Logic for 'devws setup'
-│   ├── env_commands.py   # Logic for 'devws env' group (backup/restore)
-│   ├── local_commands.py # Logic for 'devws local' group (pull/push/status/init)
-│   └── clean_commands.py # Logic for 'devws clean'
-├── archive/              # Historical files (e.g., original Makefiles, READMEs)
-├── config.yaml.example   # Configuration template for 'devws setup'
-├── env.example           # Environment variables template
-├── .gitignore            # Git ignore rules for the devws repo itself
-├── MERGE-ANALYSIS.md     # Analysis of the merge process
-├── README.md             # This file
-├── setup.py              # Python package setup file
-├── ALT-DESIGN.md         # Alternative design considerations for workstation sync
-└── DESIGN.md             # Technical design document for workstation sync
-
-# External files (created by devws setup or local commands):
-~/.env                   # Your global environment variables (managed by 'devws env')
-~/.config/devws/config.yaml # Your global configuration file for 'devws setup' (gitignored)
-./.ws-sync               # Project-specific files to manage (for 'devws local')
+devws
+├── setup [OPTIONS]
+│   └── Initializes or updates the core workstation configuration
+│
+├── config
+│   ├── view
+│   ├── set <key> <value>
+│   ├── set-profile <profile>
+│   ├── backup
+│   └── restore
+│
+├── local
+│   ├── init
+│   ├── pull [--force] [--dry-run] [--json] [--debug]
+│   ├── push [--force] [--debug]
+│   └── status [--debug] [--all]
+│
+├── home
+│   ├── backup
+│   └── dotfiles
+│       ├── status
+│       ├── push
+│       └── pull
+│
+├── secrets
+│   ├── get <secret-name>
+│   └── put <secret-name> <secret-value>
+│
+└── precommit
+    └── Scans for sensitive information
 ```
 
 ## 🎯 Usage
 
 ### 1. Core Workstation Configuration (`devws` commands)
 
-These commands manage your overall development workstation setup.
+These commands manage your overall development workstation setup and global `devws` configuration.
 
-*   **`devws setup`**: Run the full setup process for your Linux development environment. It's idempotent and self-healing.
+*   **`devws setup`**: Runs the full setup process for your Linux development environment. It's idempotent and self-healing.
     ```bash
-    devws setup [--force] [--config-path <path>]
+    devws setup [--force]
     ```
     *   `--force`: Force re-run of setup steps, even if already verified.
-    *   `--config-path`: Specify a custom `config.yaml` file.
-
-*   **`devws env backup`**: Backs up your global `~/.env` file to Google Secrets Manager.
-    ```bash
-    devws env backup
-    ```
-
-*   **`devws env restore`**: Restores your global `~/.env` file from Google Secrets Manager.
-    ```bash
-    devws env restore
-    ```
 
 *   **`devws clean`**: Cleans up temporary files (e.g., `*.backup.*`) across your workstation.
     ```bash
     devws clean
     ```
+
+*   **`devws config`**: Manages the `devws` tool's own global configuration (`~/.config/devws/config.yaml`).
+    *   **`devws config view`**: Displays the current global `devws` configuration.
+        ```bash
+        devws config view
+        ```
+    *   **`devws config set <key> <value>`**: Sets a specific global configuration key.
+        ```bash
+        devws config set default_gcs_profile my-personal-profile
+        devws config set gcs_profiles.my-personal-profile.project_id my-gcp-project
+        ```
+    *   **`devws config set-profile <profile_name>`**: Sets the default GCS profile.
+        ```bash
+        devws config set-profile work-profile
+        ```
+    *   **`devws config backup`**: Backs up the `devws` tool's configuration (`~/.config/devws/config.yaml` and potentially other assets) to GCS.
+        ```bash
+        devws config backup [--profile <profile_name>]
+        ```
+    *   **`devws config restore`**: Restores the `devws` tool's configuration from GCS.
+        ```bash
+        devws config restore [--profile <profile_name>] [--force]
+        ```
+
+*   **`devws home`**: Manages your user's home directory.
+    *   **`devws home backup`**: Creates a full, versioned backup of your home directory (excluding configured patterns) to local storage or GCS.
+        ```bash
+        devws home backup [--profile <profile_name>]
+        ```
+    *   **`devws home dotfiles`**: Manages synchronization of specific dotfiles and configuration files.
+        *   **`devws home dotfiles push`**: Pushes configured dotfiles from local to GCS.
+            ```bash
+            devws home dotfiles push [--profile <profile_name>]
+            ```
+        *   **`devws home dotfiles pull`**: Pulls configured dotfiles from GCS to local.
+            ```bash
+            devws home dotfiles pull [--profile <profile_name>] [--force]
+            ```
 
 ### 2. Project-Level Configuration Management (`devws local` commands)
 
@@ -127,33 +176,30 @@ These commands manage project-specific, non-version-controlled files (like `.env
 
 *   **`devws local init`**: Initializes a `.ws-sync` file in the current Git repository. This file defines which project-specific files are managed by `devws local`.
     ```bash
-    devws local init [--profile <profile_name>]
+    devws local init
     ```
-    *   `--profile`: Specifies the GCS profile to use (e.g., `default`, `personal`, `work`).
 
 *   **`devws local pull`**: Pulls all files listed in `.ws-sync` from GCS to the local project directory.
     ```bash
-    devws local pull [--profile <profile_name>] [--force] [--dry-run] [--json]
+    devws local pull [--force] [--dry-run] [--json]
     ```
-    *   `--profile`: Specifies the GCS profile to use.
     *   `--force`: Overwrite local changes if conflicts exist.
     *   `--dry-run`: Perform a dry run without actually pulling files, showing what would happen.
     *   `--json`: Output dry run results as JSON.
 
 *   **`devws local push`**: Pushes all files listed in `.ws-sync` from the local project directory to GCS.
     ```bash
-    devws local push [--profile <profile_name>] [--force]
+    devws local push [--force]
     ```
-    *   `--profile`: Specifies the GCS profile to use.
     *   `--force`: Overwrite GCS version if conflicts exist.
 
 *   **`devws local status`**: Shows the synchronization status of managed files (local vs. GCS) and checks against `.gitignore`.
     ```bash
-    devws local status [--profile <profile_name>]
+    devws local status [--all]
     ```
-    *   `--profile`: Specifies the GCS profile to use.
+    *   `--all`: List files ignored by `.gitignore` but not in `.ws-sync`.
 
-#### <a name="repo-identification"></a>How your backup of local-only config files is tied back to your repository
+#### <a name="repo-identification"></a>How your project's local-only config files are tied back to your repository
 
 When you run `devws local push` or `devws local pull`, the tool needs a unique and consistent way to identify your project's backup in your GCP project. This ensures that when you restore your configuration on a different machine, you get the correct files for the correct project.
 
@@ -356,3 +402,39 @@ This project is for personal use. Feel free to adapt it for your own development
 ---
 
 **Note**: This CLI is designed for Linux development environments. It works on any Linux distribution with Python 3.7+ and standard package managers.
+
+---
+
+## Appendix: Design Notes
+
+### Backup vs. Sync: An Unresolved Design Tension
+
+A thoughtful design question has been raised regarding the overlapping nature of the various backup and sync commands. This is an open topic for future refinement.
+
+**The Current State & The "Superset" Problem:**
+
+The current command structure creates a situation where different commands can back up the same file to different locations, creating potential confusion:
+-   `devws config backup` backs up `~/.config/devws/config.yaml` to `gs://.../devws/`.
+-   `devws home dotfiles push` could be configured to also back up `~/.config/devws/config.yaml` to `gs://.../home/dotfiles/`.
+-   `devws home backup` will *definitely* back up `~/.config/devws/config.yaml` as part of its full home directory archive to `gs://.../home/backups/`.
+
+This leads to a valid question: "Where is my latest backup of a specific file?"
+
+**Argument for Separate Commands (Current Design):**
+
+The current design intentionally separates the *concepts* of **Archiving** and **Syncing**.
+-   **`devws home backup` (Archiving)**: Creates a full, point-in-time, versioned `.zip` file. This is for disaster recovery. You restore the whole system from a single snapshot in time.
+-   **`devws home dotfiles` & `devws config` (Syncing)**: Manages a "live," canonical copy of individual configuration files. This is for keeping the state of multiple workstations consistent. You pull the latest `config.yaml` to a new machine to get it configured.
+
+In this model, you wouldn't typically use the full `home backup` to find your latest `config.yaml`; you would use `devws config restore`. The full backup is a safety net, not a state management tool.
+
+**Argument for Consolidated Commands:**
+
+As was suggested, an alternative would be to consolidate these into fewer commands, for example:
+-   `devws backup --scope=home` (Full backup)
+-   `devws backup --scope=dotfiles` (Sync dotfiles)
+-   `devws backup --scope=tool-config` (Sync tool config)
+
+The major pro is a single, unified `backup` command. The major con is that it conflates the very different operations of "creating a versioned archive" and "syncing live files," which could be equally confusing.
+
+This remains an unresolved design tension. The current separation is explicit but requires the user to understand the conceptual difference. A consolidated command might be simpler at first glance but could hide important distinctions. Future versions of `devws` may revisit this design.

@@ -15,8 +15,8 @@ components:
       # - "my_project_config.json"
       # - "secrets/*.txt"
     bucket_name: "" # Your Google Cloud Storage bucket name for synchronization
-  env_setup:
-    name: "Environment Setup"
+  shell_startup:
+    name: "Shell Startup Script"
     category: "core"
     enabled: true
   nodejs:

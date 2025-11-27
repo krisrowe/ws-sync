@@ -22,14 +22,8 @@ rm -f ".ws-sync"
 identify_project_id
 identify_bucket_name
 
-# Pre-configure the global config file with test resources
-echo "Pre-configuring global config file: $WS_SYNC_CONFIG"
-cat <<EOF > "$WS_SYNC_CONFIG_FILE"
-gcs_profiles:
-  default:
-    project_id: "$YOUR_TEST_PROJECT_ID"
-    bucket_name: "$YOUR_TEST_BUCKET_NAME"
-EOF
+# Configure GCS test profile using the common function
+configure_gcs_test_config "$YOUR_TEST_PROJECT_ID" "$YOUR_TEST_BUCKET_NAME" "$WS_SYNC_CONFIG"
 
 # Ensure no .ws-sync file exists
 rm -f ".ws-sync"

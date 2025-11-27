@@ -5,6 +5,8 @@ import sys
 import hashlib
 import re # Import re for regular expressions
 import yaml # Import yaml for global config
+from datetime import datetime
+import fnmatch
 
 # Global status tracking
 STEP_STATUS = {}
@@ -466,3 +468,150 @@ def get_gcs_profile_config(profile_name='default', silent=False, debug=False):
     bucket_name = profile_config.get('bucket_name')
 
     return project_id, bucket_name
+
+def _get_file_hash(file_path, algorithm='md5'):
+    """Calculates the hash of a file.
+    
+    Args:
+        file_path: Path to the file
+        algorithm: Hash algorithm to use ('md5' or 'sha256')
+    
+    Returns:
+        Base64-encoded hash for MD5 (to match GCS format), hex for SHA256
+    """
+    if not os.path.exists(file_path):
+        return None
+    
+    if algorithm == 'md5':
+        hasher = hashlib.md5()
+    else:
+        hasher = hashlib.sha256()
+    
+    with open(file_path, 'rb') as f:
+        while True:
+            chunk = f.read(4096)
+            if not chunk:
+                break
+            hasher.update(chunk)
+    
+    # Return base64-encoded hash for MD5 to match GCS format
+    if algorithm == 'md5':
+        import base64
+        return base64.b64encode(hasher.digest()).decode('utf-8')
+    else:
+        return hasher.hexdigest()
+
+
+def _get_gcs_file_status(gcs_manager, gcs_object_path):
+    """
+    Determines the existence, type (file/directory), and relevant metadata
+    of a given path in Google Cloud Storage using the GCSManager.
+
+    Args:
+        gcs_manager (GCSManager): An instance of the GCSManager.
+        gcs_object_path (str): The full gs:// path to the GCS object or prefix.
+
+    Returns:
+        dict: A dictionary with 'status', 'type', and 'metadata'.
+              metadata includes 'last_modified_timestamp' (ISO format) and 'md5_hash'.
+    """
+    status = "Not Present"
+    file_type = "N/A"
+    metadata = {}
+
+    try:
+        if gcs_object_path.endswith('/'):
+            list_output = gcs_manager.gcs_ls(gcs_object_path, recursive=False)
+            if list_output:
+                 return { "status": "Present", "type": "Directory", "metadata": {} }
+            else:
+                try:
+                    gcs_manager.gcs_stat(gcs_object_path)
+                    return { "status": "Present", "type": "Directory", "metadata": {} }
+                except subprocess.CalledProcessError:
+                    pass
+        else:
+            list_output = gcs_manager.gcs_ls(f"{gcs_object_path}/", recursive=False)
+            if list_output:
+                is_directory = False
+                for item in list_output:
+                    if item.endswith('/') or len(list_output) > 1:
+                        is_directory = True
+                        break
+                if is_directory:
+                    return { "status": "Present", "type": "Directory", "metadata": {} }
+    except Exception:
+        pass
+
+    try:
+        obj_stats = gcs_manager.gcs_stat(gcs_object_path)
+        if obj_stats:
+            status = "Present"
+            file_type = "File"
+            if 'Update time' in obj_stats:
+                metadata['last_modified_timestamp'] = obj_stats['Update time']
+            if 'Hash (md5)' in obj_stats:
+                metadata['md5_hash'] = obj_stats['Hash (md5)']
+            return { "status": status, "type": file_type, "metadata": metadata }
+    except Exception as e:
+        click.echo(f"DEBUG: gcs_stat failed for {gcs_object_path}: {e}", err=True)
+        pass
+
+    return { "status": "Not Present", "type": "N/A", "metadata": {} }
+
+
+def _get_local_file_status(local_file_path):
+    """
+    Determines the existence, type (file/directory), and relevant metadata
+    of a given path on the local filesystem.
+    """
+    status = "Not Present"
+    file_type = "N/A"
+    metadata = {}
+
+    if os.path.exists(local_file_path):
+        status = "Present"
+        if os.path.isdir(local_file_path):
+            file_type = "Directory"
+        elif os.path.isfile(local_file_path):
+            file_type = "File"
+            try:
+                mtime = os.path.getmtime(local_file_path)
+                metadata['last_modified_timestamp'] = datetime.fromtimestamp(mtime).isoformat()
+                metadata['md5_hash'] = _get_file_hash(local_file_path, algorithm='md5')
+            except Exception as e:
+                click.echo(f"❌ Error getting local file metadata for {local_file_path}: {e}", err=True)
+        
+    return { "status": status, "type": file_type, "metadata": metadata }
+
+def _generate_ascii_table(data):
+    """
+    Generates a human-readable ASCII table from a list of dictionaries.
+    """
+    if not data:
+        return "No data to display."
+
+    columns = [(key, key.replace('_', ' ').title()) for key in data[0].keys()]
+    
+    column_widths = {}
+    for col_key, col_header in columns:
+        column_widths[col_key] = len(col_header)
+        for row in data:
+            value_len = len(str(row.get(col_key, '')))
+            if value_len > column_widths[col_key]:
+                column_widths[col_key] = value_len
+    
+    headers = [col_header for _, col_header in columns]
+    header_line = " | ".join(headers[i].ljust(column_widths[columns[i][0]]) for i in range(len(columns)))
+    
+    separator_line = "-+-".join("-" * column_widths[col_key] for col_key, _ in columns)
+
+    table_rows = [header_line, separator_line]
+
+    for row in data:
+        row_values = []
+        for key, _ in columns:
+            row_values.append(str(row.get(key, '')).ljust(column_widths[key]))
+        table_rows.append(" | ".join(row_values))
+
+    return "\n".join(table_rows)

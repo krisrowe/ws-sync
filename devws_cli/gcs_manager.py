@@ -30,11 +30,23 @@ class GCSManager:
             return f"{self.bucket_url}/repos/{repo_identifier}"
         return None
 
-    def get_user_home_gcs_path(self):
+    def get_tool_config_gcs_path(self):
         """
-        Returns the GCS path for user home directory configurations.
+        Returns the GCS path for devws tool configuration.
         """
-        return f"{self.bucket_url}/user-home"
+        return f"{self.bucket_url}/devws/"
+
+    def get_home_backups_gcs_path(self):
+        """
+        Returns the GCS path for home directory backup archives.
+        """
+        return f"{self.bucket_url}/home/backups/"
+
+    def get_dotfiles_gcs_path(self):
+        """
+        Returns the GCS path for synchronized dotfiles.
+        """
+        return f"{self.bucket_url}/home/dotfiles/"
 
     def get_user_components_gcs_path(self):
         """
@@ -93,10 +105,10 @@ class GCSManager:
         Path should be a full gs:// path to an object.
         Returns stat output as a dictionary or None if not found/error.
         """
-        command = ['gsutil', 'stat', '-L', path] # -L for JSON output (more robust parsing)
+        command = ['gsutil', 'stat', path]
         try:
             result = _run_command(command, capture_output=True, check=True, debug=debug)
-            # gsutil stat -L gives key: value pairs per line, not full JSON
+            # gsutil stat gives key: value pairs per line
             # We'll parse it into a dict for convenience
             stats = {}
             for line in result.stdout.splitlines():

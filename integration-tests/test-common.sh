@@ -129,6 +129,7 @@ configure_gcs_test_config() {
     local WS_SYNC_CONFIG_FILE="$WS_SYNC_CONFIG_DIR/config.yaml"
 
     echo "Pre-configuring test GCS profile in config file: $WS_SYNC_CONFIG_FILE"
+    mkdir -p "$WS_SYNC_CONFIG_DIR"
     cat <<EOF > "$WS_SYNC_CONFIG_FILE"
 gcs_profiles:
   default:
