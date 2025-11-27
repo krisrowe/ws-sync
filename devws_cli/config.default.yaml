@@ -70,6 +70,39 @@ project_id: "" # Your Google Cloud Project ID (used for secrets backup validatio
 #     type: "directory"
 user_home_sync: []
 
+# Configuration for the `devws home backup` command.
+home_backup:
+  output_dir: "~/backups"
+  # List of paths to explicitly include, even if they are covered by a broader exclusion.
+  # Paths are relative to the home directory.
+  inclusions:
+    - '.config/devws'
+    - '.config/wssync'
+    - '.config/ws-sync'
+  # List of glob patterns to exclude from the backup.
+  # Paths are relative to the home directory.
+  exclusions:
+    - '.antigravity/**'
+    - '.codeium/**'
+    - '.cursor/**'
+    - '.docker/**'
+    - '.dotnet/**'
+    - '.gsutil/**'
+    - '.gemini/tmp/**'
+    - '.local/**'
+    - '.npm/**'
+    - '.pki/**'
+    - '.vscode/**'
+    - '.windsurf/**'
+    - '.config/**'
+    - '.cache/**'
+    - '*/__pycache__/**'
+    - '*/venv/**'
+    - '*/node_modules/**'
+    - 'backups/**'
+    - 'ws-sync/**' # Exclude the repo itself
+
+
 # Custom components that run after all core components.
 # These components are executed in the order they are defined.
 #
