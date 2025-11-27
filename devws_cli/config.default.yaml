@@ -37,6 +37,10 @@ components:
     name: "Gemini CLI"
     category: "development"
     enabled: true
+  claude_code:
+    name: "Claude Code"
+    category: "development"
+    enabled: true
   github:
     name: "GitHub CLI"
     category: "development"
