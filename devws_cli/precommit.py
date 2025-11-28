@@ -138,7 +138,14 @@ def run_precommit():
     findings = []
     
     # Track which file is the unsafe-patterns.yaml itself to filter out self-matches
-    unsafe_patterns_file_path_str = str(UNSAFE_PATTERNS_FILE.relative_to(Path.cwd())) # Get relative path for comparison
+    # Only filter if the unsafe-patterns.yaml file is actually in the current repository
+    unsafe_patterns_file_path_str = None
+    try:
+        unsafe_patterns_file_path_str = str(UNSAFE_PATTERNS_FILE.relative_to(Path.cwd()))
+    except ValueError:
+        # The unsafe-patterns.yaml file is not in the current working directory tree
+        # This is fine - it means we don't need to filter it out since it won't be scanned
+        pass
     
     for file_path_str in files_to_scan:
         file_path = Path(file_path_str)
@@ -155,7 +162,10 @@ def run_precommit():
                     for name, pattern in all_patterns.items():
                         try:
                             # Filter out false positives where generic pattern definitions match themselves in their own file
-                            if file_path_str == unsafe_patterns_file_path_str and name.startswith("Generic Pattern"):
+                            # Only do this check if unsafe_patterns_file_path_str is set (i.e., the file is in the current repo)
+                            if (unsafe_patterns_file_path_str is not None and 
+                                file_path_str == unsafe_patterns_file_path_str and 
+                                name.startswith("Generic Pattern")):
                                 # This is a heuristic: check if the pattern string is directly in the line.
                                 # Given our new encoded patterns, a simple 'pattern in line' check should suffice
                                 if pattern in line: 
