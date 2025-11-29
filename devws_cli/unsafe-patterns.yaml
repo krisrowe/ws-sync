@@ -16,3 +16,11 @@ generic_patterns:
   # possibly separated by single hyphen, underscore, or dot. This version uses word boundaries
   # to avoid matching substrings of legitimate words/identifiers.
   - "\\b[a-zA-Z0-9]{8}(?:[-_.][a-zA-Z0-9]{8}){3,}\\b"
+  # Google OAuth Client ID
+  - "[0-9]+-[a-z0-9]+\\.apps\\.googleusercontent\\.com"
+  # Google OAuth Client Secret
+  - "GOCSPX-[a-zA-Z0-9_-]+"
+  # Google OAuth Access Token
+  - "ya29\\.[a-zA-Z0-9._-]+"
+  # Google OAuth Refresh Token
+  - "1//[0-9a-zA-Z_-]+"

@@ -196,10 +196,9 @@ def run_precommit():
     for finding in findings:
         click.echo("\n" + "-"*40)
         click.echo(f"[!] SECRET FOUND: {finding['match_type']}")
+        click.echo(f"  - Pattern: {finding['pattern']}")
         click.echo(f"  - File:    {finding['file']}")
         click.echo(f"  - Line:    {finding['line_num']}")
         click.echo(f"  - Content: {finding['line_content']}")
-        # if debug:
-        #     click.echo(f"  - Pattern: {finding['pattern']}") # Uncomment for debugging patterns
     click.echo("\n" + "="*40)
     click.echo("Please review the findings above and remove any sensitive data before committing.")

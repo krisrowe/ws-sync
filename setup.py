@@ -12,6 +12,7 @@ setup(
         'Click',
         'PyYAML',
         'google-cloud-secret-manager', # Runtime dependency for secrets commands
+        'importlib-metadata; python_version < "3.10"',
     ],
     extras_require={
         'tests': [

@@ -23,7 +23,7 @@ def _get_secret_manager_client_and_project_id(project_id_arg=None):
     resolved_project_id = project_id_arg
     if not resolved_project_id:
         global_config, _ = _load_global_config()
-        resolved_project_id = global_config.get('default_gcp_project_id')
+        resolved_project_id = global_config.get('project_id')
     if not resolved_project_id:
         try:
             result = _run_command(['gcloud', 'config', 'get-value', 'project'], capture_output=True, check=True)
@@ -32,7 +32,7 @@ def _get_secret_manager_client_and_project_id(project_id_arg=None):
             pass # Will be handled by the next check
 
     if not resolved_project_id:
-        click.echo(f"❌ Google Cloud Project ID not found. Please specify with --project-id, set 'default_gcp_project_id' in your global config, or configure gcloud default project.", err=True)
+        click.echo(f"❌ Google Cloud Project ID not found. Please specify with --project-id, set 'project_id' in your global config, or configure gcloud default project.", err=True)
         sys.exit(1)
 
     try:

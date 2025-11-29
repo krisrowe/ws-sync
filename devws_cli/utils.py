@@ -456,16 +456,14 @@ def get_git_repo_info():
 
 def get_gcs_profile_config(profile_name='default', silent=False, debug=False):
     """
-    Retrieves project_id and bucket_name for a given profile from global config.
+    Retrieves project_id and bucket_name from global config.
     Returns (project_id, bucket_name) or (None, None) if not found.
     """
     global_config, _ = _load_global_config(silent=silent, debug=debug)
-    
-    gcs_profiles = global_config.get('gcs_profiles', {})
-    profile_config = gcs_profiles.get(profile_name, {})
 
-    project_id = profile_config.get('project_id')
-    bucket_name = profile_config.get('bucket_name')
+    # Use top-level project_id and gcs_bucket settings
+    project_id = global_config.get('project_id')
+    bucket_name = global_config.get('gcs_bucket')
 
     return project_id, bucket_name
 
