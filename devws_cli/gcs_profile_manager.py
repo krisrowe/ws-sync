@@ -255,12 +255,11 @@ class GCSProfileManager:
             error_message = f"Could not check/label bucket 'gs://{chosen_bucket_name}': {e}"
             return global_config_dict, False, messages, error_message
 
-        # Store in global config
-        # Store in global config
-        current_profile_config = global_config_dict.get('gcs_profiles', {}).get(profile_name, {})
-        new_profile_config = {'project_id': chosen_project_id, 'bucket_name': chosen_bucket_name}
+        # Store in global config (top-level settings only)
+        current_project_id = global_config_dict.get('project_id')
+        current_bucket_name = global_config_dict.get('gcs_bucket')
 
-        if current_profile_config == new_profile_config:
+        if current_project_id == chosen_project_id and current_bucket_name == chosen_bucket_name:
             messages.append(f"✅ GCS configuration already up to date in {actual_global_config_file}")
             success = True
         else:
@@ -268,7 +267,11 @@ class GCSProfileManager:
                 messages.append(f"🔍 [DRY RUN] Would save to config: Project ID='{chosen_project_id}', Bucket='{chosen_bucket_name}' to {actual_global_config_file}")
                 success = True
             else:
-                global_config_dict['gcs_profiles'][profile_name] = new_profile_config
+                global_config_dict['project_id'] = chosen_project_id
+                global_config_dict['gcs_bucket'] = chosen_bucket_name
+                # Remove legacy gcs_profiles and default_gcp_project_id if they exist
+                global_config_dict.pop('gcs_profiles', None)
+                global_config_dict.pop('default_gcp_project_id', None)
 
                 try:
                     with open(actual_global_config_file, 'w') as f:
