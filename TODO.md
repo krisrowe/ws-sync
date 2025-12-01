@@ -96,6 +96,25 @@ These are valuable ideas for future development to make `devws local` even more 
         - `settings.json` may contain machine-specific paths; evaluate if partial sync or path normalization is needed
         - `CLAUDE.md` is portable and ideal for sync
         - Could extend `claude_code` component to check for and pull user config during setup if GCS backup exists
+- [ ] **Manual Setup Verification (Security-Sensitive Items):**
+    - Some configurations contain secrets or credentials that should NOT be auto-synced for security reasons, but `devws setup` should still verify their presence and guide the user.
+    - **Pattern:** Components can check if a required config exists locally and, if missing, report guidance (not errors) with manual setup instructions.
+    - **Examples of items requiring manual setup:**
+        - GitHub CLI auth (`gh auth login`) - see "GitHub CLI Authentication Verification" below
+        - SSH keys (generate or copy manually)
+        - GCP credentials (`gcloud auth login`)
+    - **Implementation approach:**
+        - Add optional `manual_setup_check` function to components
+        - Check returns: CONFIGURED (exists), NEEDS_SETUP (missing, show guidance), or SKIPPED
+        - Display manual setup guidance in a separate section of the SETUP REPORT
+    - **Benefit:** Users get a checklist of what still needs manual attention after `devws setup` completes.
+- [ ] **GitHub CLI Authentication Verification:**
+    - First implementation of the "Manual Setup Verification" pattern above.
+    - The `github` component currently installs `gh` CLI but does not verify authentication status.
+    - **Enhancement:** Check if `~/.config/gh/hosts.yml` exists and contains valid auth.
+    - **If not configured:** Display guidance to run `gh auth login` rather than auto-syncing tokens.
+    - **Rationale:** OAuth tokens in `hosts.yml` are security-sensitive; manual login is preferred over syncing credentials across machines.
+    - **Alternative considered:** Sync `~/.config/gh/hosts.yml` via `user_home_sync` - viable but less secure; tokens could be rotated/revoked, and re-auth is straightforward.
 - [ ] **Categorized Setup Output with Centralized Reporting:**
     - Refactor the setup component architecture to use a centralized reporting system.
     - Components should return status and messages (array of guidance/errors/warnings) instead of directly calling `_log_step`.
