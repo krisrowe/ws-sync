@@ -11,5 +11,8 @@ dummy-secrets.txt
 # Ignore Python build artifacts
 build/
 devws.egg-info/
+
+# Project-specific
 config.yaml
 *.temp.sh
+*.log
