@@ -82,6 +82,20 @@ These are valuable ideas for future development to make `devws local` even more 
     - [x] Implement `devws home dotfiles push` to back up these files to GCS.
     - [x] Implement `devws home dotfiles pull` to restore these files from GCS.
     - The `pull` command should be non-destructive and should not overwrite local files with pending changes. It should inform the user about the conflicts and provide a way to resolve them.
+- [ ] **Claude Code Configuration Sync (`~/.claude/`):**
+    - Add Claude Code configuration files to the `user_home_sync` list in `config.yaml`:
+        - `~/.claude/settings.json` - User preferences and Claude Code settings
+        - `~/.claude/CLAUDE.md` - User-level instructions and context for Claude
+    - **Where:** Leverage existing `devws home dotfiles` infrastructure (push/pull/status)
+    - **How:** Files sync to GCS at `gs://bucket/home/dotfiles/.claude/`
+    - **When:**
+        - `devws home dotfiles push` - Backup after local configuration changes
+        - `devws home dotfiles pull` - Restore on new/rebuilt workstations
+        - Optionally during `devws setup` - Auto-pull Claude config if exists in GCS but not locally (bootstrap new machine)
+    - **Considerations:**
+        - `settings.json` may contain machine-specific paths; evaluate if partial sync or path normalization is needed
+        - `CLAUDE.md` is portable and ideal for sync
+        - Could extend `claude_code` component to check for and pull user config during setup if GCS backup exists
 - [ ] **Categorized Setup Output with Centralized Reporting:**
     - Refactor the setup component architecture to use a centralized reporting system.
     - Components should return status and messages (array of guidance/errors/warnings) instead of directly calling `_log_step`.
