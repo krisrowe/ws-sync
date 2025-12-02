@@ -243,6 +243,7 @@ This would provide a "consumer durability" backup option separate from GCS, usef
 - Long-term archival independent of GCP project lifecycle
 - Sharing complete project state with others
 - Personal backup to a trusted, permanent location
+- Transferring ownership to another Google account (useful for sensitive projects or client handoffs)
 
 **Implementation notes:**
 - Requires OAuth with `drive.file` scope (already added to gwsa)
