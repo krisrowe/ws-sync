@@ -24,3 +24,5 @@ generic_patterns:
   - "ya29\\.[a-zA-Z0-9._-]+"
   # Google OAuth Refresh Token
   - "1//[0-9a-zA-Z_-]+"
+  # UUID / GUID - These are personal/user-specific credentials used by some APIs and should not be found in a public repo.
+  - "\\b[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\\b"
