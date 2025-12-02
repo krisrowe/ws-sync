@@ -6,6 +6,7 @@ from devws_cli.config_commands import config
 from devws_cli.secrets_commands import secrets
 from devws_cli.home_commands import home
 from devws_cli.precommit_commands import precommit
+from devws_cli.repo_commands import repo
 
 @click.group()
 def devws():
@@ -22,6 +23,7 @@ devws.add_command(config)
 devws.add_command(secrets)
 devws.add_command(home)
 devws.add_command(precommit)
+devws.add_command(repo)
 
 if __name__ == '__main__':
     devws()
