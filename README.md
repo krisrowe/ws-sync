@@ -111,6 +111,9 @@ devws
 │   ├── get <secret-name>
 │   └── put <secret-name> <secret-value>
 │
+├── repo
+│   └── user-archive [--target-folder <path>] [--no-bundle] [--dry-run]
+│
 └── precommit
     └── Scans for sensitive information
 ```
@@ -198,6 +201,59 @@ These commands manage project-specific, non-version-controlled files (like `.env
     devws local status [--all]
     ```
     *   `--all`: List files ignored by `.gitignore` but not in `.ws-sync`.
+
+### 3. Repository-Level Commands (`devws repo` commands)
+
+These commands operate on a git repository as a whole.
+
+*   **`devws repo user-archive`**: Creates a self-contained archive of user-specific files and the git repository itself.
+
+    ```bash
+    devws repo user-archive --target-folder <path> [--no-bundle] [--dry-run]
+    ```
+    *   `--target-folder`: Local directory to save the archive (required).
+    *   `--no-bundle`: Exclude the git bundle from the archive.
+    *   `--dry-run`: Show what would be archived without creating the file.
+
+    **What gets archived:**
+
+    1. **Git bundle** (`repo.bundle`): A complete clone of the repository including all commits, branches, and tags. This is equivalent to what you'd get from `git clone` - no untracked files, no gitignored files, no credentials.
+
+    2. **User files**: Files matching patterns listed under the `# user-files` section in `.gitignore`. These are the local, non-versioned files specific to your use of the repository.
+
+    3. **Git remotes** (`git-remotes.txt`): Documents where the repository was hosted, for reference.
+
+    **Why include the git bundle by default?**
+
+    Many repositories are created primarily to support work on user-specific data files. Without the associated code and tooling, those user files may become meaningless. Including the bundle ensures the archive remains useful even if:
+    - The remote repository is later deleted
+    - The hosting account becomes inaccessible
+    - You need to restore the complete working environment
+
+    **Setting up user-files in .gitignore:**
+
+    Add a `# user-files` section to your `.gitignore`:
+
+    ```gitignore
+    # user-files
+    config.yaml
+    user-*.*
+    ```
+
+    Files matching these patterns will be included in the archive. The section ends at the next blank line or end of file.
+
+    **Example usage:**
+
+    ```bash
+    # Preview what would be archived
+    devws repo user-archive --target-folder . --dry-run
+
+    # Create archive in current directory
+    devws repo user-archive --target-folder .
+
+    # Create archive without git bundle (user files only)
+    devws repo user-archive --target-folder ./backups --no-bundle
+    ```
 
 #### <a name="repo-identification"></a>How your project's local-only config files are tied back to your repository
 

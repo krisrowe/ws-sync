@@ -1,4 +1,36 @@
-"""Repository-level commands for devws CLI."""
+"""Repository-level commands for devws CLI.
+
+User Archive Design Notes
+-------------------------
+The user-archive command includes a git bundle by default alongside user files.
+This ensures the archive is self-contained and useful even if:
+- The remote repository is later deleted
+- The GitHub account is lost or inaccessible
+- The repo was primarily created to support work on the user files
+
+User files without the associated tooling/code may become meaningless. Including
+the bundle preserves the full context needed to restore and continue work.
+
+Git Bundle Safety Analysis
+--------------------------
+A git bundle contains the same data available when cloning a public repository:
+- All commits, branches, and tags
+- Complete version history of tracked files
+- No untracked or gitignored files (user files, credentials, etc.)
+
+What a bundle does NOT include:
+- .git/config (remotes, local settings, hooks)
+- Untracked files
+- Files in .gitignore (credentials, tokens, user data)
+- Local refs like stashes
+
+For a public repo, the bundle contains nothing beyond what anyone can already
+access via `git clone`. For private repos, the bundle should be stored with
+the same care as the repo itself. The archive combines:
+1. Git bundle - equivalent to a clone of the repo
+2. User files - the sensitive/local data not in version control
+3. Git remotes - documents where the repo was hosted (for reference)
+"""
 
 import click
 import os
@@ -57,6 +89,237 @@ def find_matching_files(repo_root: Path, patterns: list[str]) -> list[Path]:
                 matching_files.append(path)
 
     return list(set(matching_files))  # Remove duplicates
+
+
+def create_git_bundle(repo_root: Path, output_path: Path) -> bool:
+    """
+    Create a git bundle containing all branches and tags.
+
+    Returns True if successful, False otherwise.
+    """
+    try:
+        result = subprocess.run(
+            ['git', 'bundle', 'create', str(output_path), '--all'],
+            cwd=repo_root,
+            capture_output=True,
+            text=True
+        )
+        return result.returncode == 0
+    except Exception:
+        return False
+
+
+def get_git_head_info(repo_root: Path) -> tuple[str, str]:
+    """
+    Get the current branch name and commit hash.
+
+    Returns (branch_name, commit_hash). Branch may be empty if in detached HEAD state.
+    """
+    branch = ""
+    commit = ""
+
+    try:
+        # Get current branch
+        result = subprocess.run(
+            ['git', 'rev-parse', '--abbrev-ref', 'HEAD'],
+            cwd=repo_root,
+            capture_output=True,
+            text=True
+        )
+        if result.returncode == 0:
+            branch = result.stdout.strip()
+            if branch == "HEAD":
+                branch = "(detached HEAD)"
+    except Exception:
+        pass
+
+    try:
+        # Get current commit hash
+        result = subprocess.run(
+            ['git', 'rev-parse', 'HEAD'],
+            cwd=repo_root,
+            capture_output=True,
+            text=True
+        )
+        if result.returncode == 0:
+            commit = result.stdout.strip()
+    except Exception:
+        pass
+
+    return branch, commit
+
+
+def generate_archive_readme(repo_name: str, user_files: list[Path], patterns: list[str],
+                            has_bundle: bool, remote_config: str,
+                            branch: str, commit: str) -> str:
+    """
+    Generate REPO-ARCHIVE.md content describing the archive and restoration steps.
+    """
+    user_file_list = '\n'.join(f'- `{f.name}`' for f in sorted(user_files))
+    pattern_list = '\n'.join(f'- `{p}`' for p in patterns)
+
+    # State at archive time
+    state_section = ""
+    if branch or commit:
+        state_section = f"""
+## State at Archive Time
+
+- **Branch:** `{branch}`
+- **Commit:** `{commit}`
+"""
+
+    remote_section = ""
+    if remote_config:
+        # Parse the remote config to extract URLs for the commands
+        import re as re_module
+        remote_commands = []
+        current_remote = None
+        for line in remote_config.split('\n'):
+            remote_match = re_module.match(r'\[remote "(.+)"\]', line.strip())
+            if remote_match:
+                current_remote = remote_match.group(1)
+            url_match = re_module.match(r'url\s*=\s*(.+)', line.strip())
+            if url_match and current_remote:
+                remote_commands.append(f"git remote add {current_remote} {url_match.group(1)}")
+
+        commands_text = '\n'.join(remote_commands) if remote_commands else "git remote add origin <url>"
+
+        remote_section = f"""
+## Git Remotes
+
+The original remote configuration from `git-remotes.txt`:
+
+```
+{remote_config}
+```
+
+After restoring from the bundle, re-attach to remotes (if still available):
+
+```bash
+{commands_text}
+```
+
+Then verify and sync:
+
+```bash
+git fetch --all
+git branch -u origin/main main  # Set upstream tracking
+```
+"""
+
+    # Parse remote config to get clone URL for instructions
+    clone_url = "<url-from-git-remotes.txt>"
+    if remote_config:
+        import re as re_module
+        for line in remote_config.split('\n'):
+            url_match = re_module.match(r'\s*url\s*=\s*(.+)', line)
+            if url_match:
+                clone_url = url_match.group(1)
+                break
+
+    checkout_cmd = f"git checkout {commit[:12]}" if commit else "git checkout <commit-hash>"
+
+    bundle_section = ""
+    if has_bundle:
+        bundle_section = """
+## Restoring the Repository from repo.bundle
+
+The `repo.bundle` file contains the complete git repository (all branches, tags,
+and history). To restore:
+
+```bash
+# Clone from the bundle (creates a new directory)
+git clone repo.bundle <repo-name>
+
+# Or restore into an existing empty directory
+cd <repo-name>
+git init
+git pull ../repo.bundle --all
+```
+
+After cloning from a bundle, you may want to:
+1. Add the original remote (see Git Remotes section below)
+2. Fetch from remote to verify you're up to date
+"""
+
+    # Always include restore-from-remote section, but note its importance when no bundle
+    no_bundle_note = ""
+    if not has_bundle:
+        no_bundle_note = """**Note:** This archive does not include a git bundle, so restoring from the
+remote is the only way to recover the repository code.
+
+"""
+
+    restore_from_remote = f"""
+## Restoring the Repository from Remote
+
+{no_bundle_note}If the remote is still available, clone and restore to the archived state:
+
+```bash
+git clone {clone_url}
+cd <repo-name>
+```
+
+To restore to the exact commit when this archive was created:
+
+```bash
+{checkout_cmd}
+```
+
+Or to check out the branch:
+
+```bash
+git checkout {branch}
+```
+"""
+
+    bundle_section = bundle_section + restore_from_remote
+
+    return f"""# Repository Archive: {repo_name}
+
+This archive contains a backup of user-specific files and repository data.
+{state_section}
+## Archive Contents
+
+- `REPO-ARCHIVE.md` - This file
+- `repo.bundle` - Complete git repository (if included)
+- `git-remotes.txt` - Original remote URLs for reference
+- User files (see below)
+
+## User Files
+
+These files were backed up from patterns in the `# user-files` section of `.gitignore`:
+
+Patterns:
+{pattern_list}
+
+Files included:
+{user_file_list}
+{bundle_section}{remote_section}
+## Restoring User Files
+
+After restoring the repository:
+
+1. The `.gitignore` file in the restored repo contains a `# user-files` section
+   listing the patterns for these files
+2. Copy the user files from this archive to the repository root
+3. They will be automatically ignored by git (already in `.gitignore`)
+
+```bash
+# Example restoration workflow
+git clone repo.bundle my-project
+cd my-project
+cp ../user-answers.csv .
+cp ../config.yaml .
+# etc.
+```
+
+## Notes
+
+- User files are gitignored and contain user-specific data (config, answers, etc.)
+- The git bundle contains only versioned files - no credentials or user data
+- For private repositories, treat this archive with the same care as the repo itself
+"""
 
 
 def get_git_remote_config(repo_root: Path) -> str:
@@ -180,21 +443,23 @@ def repo():
 
 @repo.command('user-archive')
 @click.option('--dry-run', is_flag=True, help='Show what would be archived without uploading')
-@click.option('--target-folder', help='Google Drive folder ID (overrides user-backup.yaml)')
-def user_archive(dry_run: bool, target_folder: str):
+@click.option('--target-folder', help='Google Drive folder ID or local path (overrides user-backup.yaml)')
+@click.option('--no-bundle', is_flag=True, help='Exclude git bundle from archive')
+def user_archive(dry_run: bool, target_folder: str, no_bundle: bool):
     """
-    Archive user-specific files from this repo to Google Drive.
+    Archive user-specific files and git bundle from this repo.
 
-    Reads patterns from the '# user-files' section in .gitignore,
-    finds matching files, and uploads a zip archive to the Google Drive
-    folder specified via --target-folder or user-backup.yaml.
+    Creates a zip archive containing:
+    - Git bundle (full repo clone, excludes untracked/gitignored files)
+    - User files matching patterns under '# user-files' in .gitignore
+    - Git remote configuration (for reference)
 
-    The archive includes:
-    - All files matching patterns under '# user-files' in .gitignore
-    - Git remote configuration (for documentation)
+    The git bundle is included by default to ensure the archive remains
+    useful even if the remote repository becomes unavailable.
 
-    Folder ID can be specified via:
-    - --target-folder <folder_id>
+    Target can be specified via:
+    - --target-folder <folder_id> (Google Drive)
+    - --target-folder <path> (local, if contains . or /)
     - user-backup.yaml with: folder: <folder_id>
     """
     # Find repo root
@@ -254,11 +519,18 @@ def user_archive(dry_run: bool, target_folder: str):
 
     if dry_run:
         click.echo(f"\n[Dry run] Would create archive: {archive_name}")
+        if not no_bundle:
+            click.echo("[Dry run] Would include: git bundle (repo.bundle)")
         if is_local_path:
             click.echo(f"[Dry run] Would save to local path: {folder_id}")
         else:
             click.echo(f"[Dry run] Would upload to Google Drive folder: {folder_id or '(not configured)'}")
         return
+
+    # Get info needed for README generation
+    remote_config = get_git_remote_config(repo_root)
+    branch, commit = get_git_head_info(repo_root)
+    has_bundle = not no_bundle
 
     # Create zip archive
     if is_local_path:
@@ -267,12 +539,33 @@ def user_archive(dry_run: bool, target_folder: str):
         local_dir.mkdir(parents=True, exist_ok=True)
         zip_path = local_dir / archive_name
 
-        with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zf:
-            for f in user_files:
-                zf.write(f, f.name)
-            remote_config = get_git_remote_config(repo_root)
-            if remote_config:
-                zf.writestr('git-remotes.txt', remote_config)
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zf:
+                # Add git bundle if not excluded
+                bundle_created = False
+                if has_bundle:
+                    bundle_path = Path(tmpdir) / 'repo.bundle'
+                    if create_git_bundle(repo_root, bundle_path):
+                        zf.write(bundle_path, 'repo.bundle')
+                        click.echo("Added: repo.bundle")
+                        bundle_created = True
+                    else:
+                        click.echo("Warning: Failed to create git bundle", err=True)
+
+                # Add user files
+                for f in user_files:
+                    zf.write(f, f.name)
+
+                # Add remote config
+                if remote_config:
+                    zf.writestr('git-remotes.txt', remote_config)
+
+                # Add REPO-ARCHIVE.md
+                readme_content = generate_archive_readme(
+                    repo_name, user_files, patterns, bundle_created, remote_config,
+                    branch, commit
+                )
+                zf.writestr('REPO-ARCHIVE.md', readme_content)
 
         click.echo(f"\nArchive saved locally:")
         click.echo(f"  {zip_path}")
@@ -282,11 +575,31 @@ def user_archive(dry_run: bool, target_folder: str):
             zip_path = Path(tmpdir) / archive_name
 
             with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zf:
+                # Add git bundle if not excluded
+                bundle_created = False
+                if has_bundle:
+                    bundle_path = Path(tmpdir) / 'repo.bundle'
+                    if create_git_bundle(repo_root, bundle_path):
+                        zf.write(bundle_path, 'repo.bundle')
+                        click.echo("Added: repo.bundle")
+                        bundle_created = True
+                    else:
+                        click.echo("Warning: Failed to create git bundle", err=True)
+
+                # Add user files
                 for f in user_files:
                     zf.write(f, f.name)
-                remote_config = get_git_remote_config(repo_root)
+
+                # Add remote config
                 if remote_config:
                     zf.writestr('git-remotes.txt', remote_config)
+
+                # Add REPO-ARCHIVE.md
+                readme_content = generate_archive_readme(
+                    repo_name, user_files, patterns, bundle_created, remote_config,
+                    branch, commit
+                )
+                zf.writestr('REPO-ARCHIVE.md', readme_content)
 
             click.echo(f"\nCreated archive: {archive_name}")
             click.echo(f"Uploading to Google Drive folder {folder_id}...")

@@ -49,6 +49,59 @@ This is a critical requirement for any public project repository.
     - **Pros**: The `devws` approach is excellent. By integrating directly with a cloud secrets provider, it follows the best practice of completely separating secrets from the codebase. It is secure and well-suited for public repositories.
     - **Cons**: It is currently tied specifically to GCP. A tool like Chezmoi is more flexible as it supports many different secret management backends.
 
+## Per-Repository User Files: An Underserved Niche
+
+The tools above focus on **home directory dotfiles** (`~/.bashrc`, `~/.gitconfig`, etc.) or **team secrets sharing**. Neither addresses a common individual developer need:
+
+> "I have `config.yaml` and `user-answers.csv` in my project repo, gitignored, and I want those same files on my laptop and my desktop, tied to that specific repo."
+
+### What Exists
+
+#### Team-Focused .env Sharing Tools
+- **[Envault](https://envault.dev/)**: Self-hosted web app for syncing `.env` files across a team. Requires a Laravel server, has access controls and audit logs.
+- **[Infisical](https://infisical.com/)**: End-to-end encrypted secrets platform with CLI. Team-oriented with RBAC.
+- **[dotenv-vault](https://www.dotenv.org/docs/security/vault)**: Encrypted `.env` sync service.
+
+These are designed for **teams** with access controls, audit trails, and web dashboards. Overkill for a single developer syncing personal config across their own machines.
+
+#### Generic File Sync + Symlinks
+The common advice for individuals is "use Dropbox/Syncthing and symlink files into your repo." This works but:
+- Requires manual symlink setup per repo
+- Not repo-aware (no automatic keying by project)
+- Easy to forget which files go where
+
+#### Dotfile Managers
+Tools like Chezmoi, YADM, and vcsh manage `~/.config/*` files excellently but don't handle **per-repository** gitignored files. They're designed for home directory state, not project-specific user data.
+
+### The Gap `devws local` Fills
+
+`devws local push/pull` addresses this gap:
+
+| Feature | Team Tools (Envault, Infisical) | Dotfile Managers (Chezmoi) | `devws local` |
+|---------|--------------------------------|---------------------------|---------------|
+| Per-repo gitignored files | ❌ | ❌ | ✅ |
+| Single user, multiple machines | Overkill | ❌ (home dir only) | ✅ |
+| Automatic repo identification | ❌ | ❌ | ✅ (via git remote URL) |
+| No web UI required | ❌ | ✅ | ✅ |
+| Simple cloud backend | ❌ | Varies | ✅ (GCS) |
+
+**How it works:**
+1. Create `.ws-sync` file listing gitignored files to sync (e.g., `config.yaml`, `.env`)
+2. `devws local push` uploads them to GCS, keyed by the repo's remote URL
+3. On another machine, clone the repo and run `devws local pull`
+4. Files are restored to exactly where they belong
+
+This is conceptually simple but surprisingly unaddressed by existing tools.
+
+### Related: `devws repo user-archive`
+
+For **portable archival** (not sync), `devws repo user-archive` creates a self-contained zip containing:
+- Git bundle (complete repo clone)
+- User files from `# user-files` section of `.gitignore`
+- Restoration documentation
+
+This serves a different use case: offline backup, disaster recovery, or sharing a complete project state when the remote might become unavailable.
+
 ## Conclusion
 
 `devws` is building a niche for itself as a **Personalized, Cloud-Integrated Developer Toolkit**.
@@ -56,5 +109,6 @@ This is a critical requirement for any public project repository.
 - It's less complex than a full **Ansible** setup.
 - It's more integrated and opinionated than a simple dotfile manager like **YADM** or **Stow**.
 - Its philosophy is most similar to **Chezmoi**, but with a tighter, more specific focus on a GCP-centric workflow.
+- It uniquely addresses **per-repository user files** for individual developers—a gap left by both team-focused secrets tools and home-directory dotfile managers.
 
 For a developer who primarily uses GCP, `devws` provides a fantastic, all-in-one "command center" that combines the most useful aspects of these other tools without their full complexity.
