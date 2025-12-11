@@ -144,3 +144,27 @@ These are valuable ideas for future development to make `devws local` even more 
     - **Configurable Patterns**: Allow users to define custom regex patterns in a `precommit.unsafe_patterns` list within `~/.config/devws/config.yaml`. The default config will keep this list empty.
     - **Built-in Generic Patterns**: Include checks for common secret formats (AWS keys, Stripe keys, private keys, high-entropy strings) loaded from `unsafe-patterns.yaml`.
     - **Reporting**: Report the sensitive value, file path, line number, and the line content where it was found.
+- [ ] **Gemini CLI Workspace Extension Installation:**
+    - Add a setup component to install the Gemini CLI workspace extension automatically.
+    - **Command:** `gemini extensions install https://github.com/gemini-cli-extensions/workspace`
+    - **Where:** New `gemini_workspace_extension` component in `config.yaml`
+    - **When:** During `devws setup` after Gemini CLI is installed
+    - **Considerations:**
+        - Check if extension is already installed before running
+        - Requires Gemini CLI to be installed first (dependency on `gemini` component)
+        - Verify extension installation succeeded
+- [ ] **MCP Server Configurations Backup:**
+    - Add MCP (Model Context Protocol) server configurations to the backup/restore infrastructure.
+    - **Files to manage:**
+        - `~/.claude/claude_desktop_config.json` - Claude Desktop MCP server configurations
+        - `~/.claude.json` - Claude Code MCP server configurations (project-agnostic)
+        - `~/.gemini/settings.json` - Gemini CLI MCP server configurations
+    - **Where:** Leverage existing `devws home dotfiles` infrastructure (push/pull/status)
+    - **How:** Files sync to GCS at `gs://bucket/home/dotfiles/.claude/` and `gs://bucket/home/dotfiles/.gemini/`
+    - **When:**
+        - `devws home dotfiles push` - Backup after MCP server configuration changes
+        - `devws home dotfiles pull` - Restore on new/rebuilt workstations
+    - **Considerations:**
+        - MCP configurations may contain paths or project-specific settings; evaluate portability
+        - Consider adding to `user_home_sync` list in `config.yaml`
+        - Should warn if configurations reference non-existent local paths after restore
