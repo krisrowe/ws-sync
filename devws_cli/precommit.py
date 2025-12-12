@@ -104,9 +104,32 @@ def get_files_to_scan():
     
     return sorted(list(files_to_scan))
 
-def run_precommit():
+def is_known_false_positive(finding):
+    """
+    Check if a finding is a known false positive that should be suppressed by default.
+
+    Known false positives:
+    - Author name (Git Full Name or Git Name Part) in LICENSE files on copyright lines
+    """
+    file_lower = finding['file'].lower()
+    match_type = finding['match_type']
+    line_content_lower = finding['line_content'].lower()
+
+    # Author name in LICENSE file on a copyright line
+    if ('license' in file_lower and
+        match_type.startswith(('Git Full Name', 'Git Name Part')) and
+        'copyright' in line_content_lower):
+        return True
+
+    return False
+
+
+def run_precommit(verbose=False):
     """
     The main engine for the precommit command.
+
+    Args:
+        verbose: If True, show intentionally ignored false positives in a separate table.
     """
     config, _ = _load_global_config(silent=True)
     
@@ -187,13 +210,29 @@ def run_precommit():
         except Exception:
             pass # Ignore files we can't read
 
+    # --- Separate real findings from known false positives ---
+    real_findings = []
+    ignored_findings = []
+
+    for finding in findings:
+        if is_known_false_positive(finding):
+            ignored_findings.append(finding)
+        else:
+            real_findings.append(finding)
+
     # --- Reporting ---
-    if not findings:
+    if not real_findings:
         click.echo("\n✅ No secrets found.")
+        if verbose and ignored_findings:
+            click.echo(f"\n📋 IGNORED ({len(ignored_findings)} known false positives):")
+            click.echo("-" * 50)
+            for finding in ignored_findings:
+                click.echo(f"  {finding['file']}:{finding['line_num']} - {finding['match_type']}")
+            click.echo("-" * 50)
         return
 
-    click.echo(f"\n🚨 FOUND {len(findings)} POTENTIAL SECRETS! 🚨")
-    for finding in findings:
+    click.echo(f"\n🚨 FOUND {len(real_findings)} POTENTIAL SECRETS! 🚨")
+    for finding in real_findings:
         click.echo("\n" + "-"*40)
         click.echo(f"[!] SECRET FOUND: {finding['match_type']}")
         click.echo(f"  - Pattern: {finding['pattern']}")
@@ -202,3 +241,10 @@ def run_precommit():
         click.echo(f"  - Content: {finding['line_content']}")
     click.echo("\n" + "="*40)
     click.echo("Please review the findings above and remove any sensitive data before committing.")
+
+    if verbose and ignored_findings:
+        click.echo(f"\n📋 IGNORED ({len(ignored_findings)} known false positives):")
+        click.echo("-" * 50)
+        for finding in ignored_findings:
+            click.echo(f"  {finding['file']}:{finding['line_num']} - {finding['match_type']}")
+        click.echo("-" * 50)
