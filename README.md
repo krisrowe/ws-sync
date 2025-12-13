@@ -8,6 +8,15 @@ This project is an opinionated tool built to solve a specific developer's workfl
 
 For a detailed analysis of how `devws` compares to mainstream tools like Chezmoi, Ansible, and others, please see the **[analysis of alternatives](ALTERNATIVES.md)**.
 
+## 🔬 Research Branch
+
+The `research` branch contains exploratory documentation and research on topics like:
+- ChromeOS/Crostini terminal integration
+- CLI tooling options (markdown viewers, SMS automation, etc.)
+- Platform-specific workflows
+
+These topics may eventually become features or documentation in `main`, but are kept in `research` while being explored. Check the branch periodically for useful findings.
+
 ## ✨ Features
 
 ### Core Workstation Configuration (`devws` commands)
