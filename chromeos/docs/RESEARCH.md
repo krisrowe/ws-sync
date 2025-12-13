@@ -24,3 +24,12 @@ Covers:
 - GUI app launching from command line
 - Browser-based viewing options
 - Recommendations
+
+### SMS Automation via Google Messages
+**File:** [messages-automation.md](messages-automation.md)
+
+Covers:
+- Browser automation of messages.google.com (fragile, last resort)
+- KDE Connect (recommended alternative)
+- ADB and Tasker alternatives
+- Comparison of reliability vs effort
