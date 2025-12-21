@@ -7,7 +7,7 @@ from pathlib import Path
 
 import click
 
-from devws_cli.chromeos.shared_logic import check_pandoc_installed, check_google_chrome_installed, convert_md_to_html, open_file_in_chromeos_browser
+from devws_cli.chromeos.shared_logic import check_pandoc_installed, check_google_chrome_installed, open_file_in_chromeos_browser
 
 PROJECT_GEMINI_MD = Path.cwd() / "GEMINI.md"
 
@@ -69,7 +69,7 @@ To preview the `apigee_feedback_breakdown.md` file:
 ```bash
 devws chrome open apigee_feedback_breakdown.md
 ```
-This will convert the Markdown file to HTML (stored in `./cache/`), and open it in a new tab in your ChromeOS browser in the background.
+This will attempt to open the Markdown file directly in your ChromeOS browser.
 """
 
     if new_instructions not in gemini_md_content:
@@ -86,24 +86,11 @@ This will convert the Markdown file to HTML (stored in `./cache/`), and open it 
 @click.argument("markdown_file", type=click.Path(exists=True, path_type=Path))
 def open_in_browser(markdown_file: Path):
     """
-    Converts a Markdown file to HTML and opens it in the ChromeOS browser.
-
-    The file is temporarily stored in the local ./cache directory.
+    Attempts to open a Markdown file directly in the ChromeOS browser.
     """
     click.echo(f"\n--- Opening '{markdown_file}' in ChromeOS Browser ---")
 
-    # 1. Ensure pandoc is installed
-    if not check_pandoc_installed():
-        click.echo("ERROR: 'pandoc' is not installed. Please install it: sudo apt install -y pandoc", err=True)
-        sys.exit(1)
-
-    # 2. Convert Markdown to HTML
-    # Use a fixed HTML filename as we are opening locally
-    html_file = Path("cache") / f"{markdown_file.stem}.html"
-    html_file.parent.mkdir(exist_ok=True) # Ensure local cache dir exists
-    convert_md_to_html(markdown_file, html_file)
-
-    # 3. Open in browser
-    open_file_in_chromeos_browser(html_file)
+    # Open the markdown file directly in the browser
+    open_file_in_chromeos_browser(markdown_file)
 
     click.echo("\n--- ChromeOS Browser Opening Complete ---")
