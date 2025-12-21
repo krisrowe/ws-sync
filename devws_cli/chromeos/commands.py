@@ -5,6 +5,7 @@ import sys
 import shutil
 from pathlib import Path
 import tempfile
+import os
 
 import click
 
@@ -101,17 +102,20 @@ def open_in_browser(markdown_file: Path, as_html: bool):
             click.echo("ERROR: '--as-html' requires pandoc to be installed. Please install it: sudo apt install -y pandoc", err=True)
             sys.exit(1)
         
-        # Use a temporary file for HTML output
-        with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.html') as tmp_html_file:
-            temp_html_path = Path(tmp_html_file.name)
+        # Create a temporary file path in the system's temp directory
+        # The file will not be deleted automatically, allowing the browser time to open it.
+        # The OS will handle cleanup of /tmp eventually.
+        temp_html_path = Path(tempfile.gettempdir()) / f"{markdown_file.stem}-{os.getpid()}.html"
 
         try:
             convert_md_to_html(markdown_file, temp_html_path)
             open_file_in_chromeos_browser(temp_html_path)
-        finally:
-            # Ensure temporary file is cleaned up
+        except Exception as e:
+            click.echo(f"An error occurred during the open process: {e}", err=True)
+            # Ensure cleanup happens even if there's an error during open
             if temp_html_path.exists():
                 temp_html_path.unlink(missing_ok=True)
+            sys.exit(1)
 
     else:
         # Attempt to open the markdown file directly
