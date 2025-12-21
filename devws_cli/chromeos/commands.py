@@ -4,10 +4,11 @@ import subprocess
 import sys
 import shutil
 from pathlib import Path
+import tempfile
 
 import click
 
-from devws_cli.chromeos.shared_logic import check_pandoc_installed, check_google_chrome_installed, open_file_in_chromeos_browser
+from devws_cli.chromeos.shared_logic import check_pandoc_installed, check_google_chrome_installed, convert_md_to_html, open_file_in_chromeos_browser
 
 PROJECT_GEMINI_MD = Path.cwd() / "GEMINI.md"
 
@@ -61,15 +62,15 @@ Once set up, you can preview any Markdown file in your project with the `devws c
 
 **Syntax:**
 ```bash
-devws chrome open <path/to/your-file.md>
+devws chrome open <path/to/your-file.md> [--as-html]
 ```
 
 **Example:**
-To preview the `apigee_feedback_breakdown.md` file:
+To preview `apigee_feedback_breakdown.md` rendered as HTML:
 ```bash
-devws chrome open apigee_feedback_breakdown.md
+devws chrome open apigee_feedback_breakdown.md --as-html
 ```
-This will attempt to open the Markdown file directly in your ChromeOS browser.
+This will convert the Markdown file to HTML (temporarily), and open it in a new tab in your ChromeOS browser.
 """
 
     if new_instructions not in gemini_md_content:
@@ -84,13 +85,36 @@ This will attempt to open the Markdown file directly in your ChromeOS browser.
 
 @chrome.command("open")
 @click.argument("markdown_file", type=click.Path(exists=True, path_type=Path))
-def open_in_browser(markdown_file: Path):
+@click.option(
+    "--as-html",
+    is_flag=True,
+    help="Convert Markdown to HTML before opening."
+)
+def open_in_browser(markdown_file: Path, as_html: bool):
     """
-    Attempts to open a Markdown file directly in the ChromeOS browser.
+    Attempts to open a Markdown file directly or as HTML in the ChromeOS browser.
     """
     click.echo(f"\n--- Opening '{markdown_file}' in ChromeOS Browser ---")
 
-    # Open the markdown file directly in the browser
-    open_file_in_chromeos_browser(markdown_file)
+    if as_html:
+        if not check_pandoc_installed():
+            click.echo("ERROR: '--as-html' requires pandoc to be installed. Please install it: sudo apt install -y pandoc", err=True)
+            sys.exit(1)
+        
+        # Use a temporary file for HTML output
+        with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.html') as tmp_html_file:
+            temp_html_path = Path(tmp_html_file.name)
+
+        try:
+            convert_md_to_html(markdown_file, temp_html_path)
+            open_file_in_chromeos_browser(temp_html_path)
+        finally:
+            # Ensure temporary file is cleaned up
+            if temp_html_path.exists():
+                temp_html_path.unlink(missing_ok=True)
+
+    else:
+        # Attempt to open the markdown file directly
+        open_file_in_chromeos_browser(markdown_file)
 
     click.echo("\n--- ChromeOS Browser Opening Complete ---")
