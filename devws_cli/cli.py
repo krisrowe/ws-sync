@@ -7,6 +7,7 @@ from devws_cli.secrets_commands import secrets
 from devws_cli.home_commands import home
 from devws_cli.precommit_commands import precommit
 from devws_cli.repo_commands import repo
+from devws_cli.chromeos.commands import chrome # New import
 
 @click.group()
 def devws():
@@ -24,6 +25,7 @@ devws.add_command(secrets)
 devws.add_command(home)
 devws.add_command(precommit)
 devws.add_command(repo)
+devws.add_command(chrome) # New command group
 
 if __name__ == '__main__':
     devws()
