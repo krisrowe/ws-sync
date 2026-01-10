@@ -85,7 +85,7 @@ Review the `bindings` section of the output. For a completely private setup, you
 ```yaml
 bindings:
 - members:
-  - user:your-email@example.com
+    email: user@example.com
   role: roles/owner
 ```
 

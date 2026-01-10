@@ -1,0 +1,30 @@
+# Global .gitignore
+# Managed by devws
+
+# Python Virtual Environments
+venv/
+.venv/
+env/
+.env/
+
+# Python Compiled Files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Environment Variables
+.env
+.env.*
+
+# Logs
+*.log
+
+# OS Metadata
+.DS_Store
+Thumbs.db
+
+# IDEs
+.vscode/
+.idea/
+*.swp

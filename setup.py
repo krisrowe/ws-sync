@@ -6,7 +6,7 @@ setup(
     packages=find_packages(),
     include_package_data=True,
     package_data={
-        'devws_cli': ['unsafe-patterns.yaml', 'startup.sh'],
+        'devws_cli': ['unsafe-patterns.yaml', 'startup.sh', 'resources/*'],
     },
     install_requires=[
         'Click',
@@ -25,8 +25,6 @@ setup(
             'devws = devws_cli.cli:devws',
         ],
     },
-    author='Your Name', # Replace with actual author
-    author_email='your.email@example.com', # Replace with actual email
     description='A comprehensive CLI for Linux Development Environment Setup and Workstation Synchronization.',
     long_description=open('README.md', encoding='utf-8').read(),
     long_description_content_type='text/markdown',
