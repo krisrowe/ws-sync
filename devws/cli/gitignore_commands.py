@@ -22,6 +22,9 @@ def status(ctx):
     from rich.console import Console
     from rich.table import Table
     from rich.panel import Panel
+    from devws.sdk.utils import _get_local_file_status
+    
+    console = Console()
     
     # 1. Load Template
     # Move up one level from cli/ to devws/
@@ -54,10 +57,20 @@ def status(ctx):
     table.add_row("[bold blue]Authoritative Path:[/bold blue]", str(target_path))
     table.add_row("[bold blue]Source:[/bold blue]", source)
     
-    status_text = "[bold red]Missing[/bold red]"
-    if target_path.exists():
+    # Use SDK to get status and metadata
+    file_info = _get_local_file_status(str(target_path))
+    
+    if file_info['status'] == "Present":
         status_text = "[bold green]Exists[/bold green]"
-    table.add_row("[bold blue]Status:[/bold blue]", status_text)
+        table.add_row("[bold blue]Status:[/bold blue]", status_text)
+        
+        meta = file_info.get('metadata', {})
+        if 'line_count' in meta:
+            table.add_row("[bold blue]Line Count:[/bold blue]", str(meta['line_count']))
+        if 'md5_hash' in meta:
+            table.add_row("[bold blue]MD5 Hash:[/bold blue]", meta['md5_hash'])
+    else:
+        table.add_row("[bold blue]Status:[/bold blue]", "[bold red]Missing[/bold red]")
     
     console.print(Panel(table, title="[bold] Global Gitignore Configuration [/bold]", border_style="blue", expand=False))
 

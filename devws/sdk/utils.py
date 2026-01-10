@@ -579,6 +579,14 @@ def _get_local_file_status(local_file_path):
                 mtime = os.path.getmtime(local_file_path)
                 metadata['last_modified_timestamp'] = datetime.fromtimestamp(mtime).isoformat()
                 metadata['md5_hash'] = _get_file_hash(local_file_path, algorithm='md5')
+                
+                # Count lines for text files (simple heuristic)
+                try:
+                    with open(local_file_path, 'r', encoding='utf-8') as f:
+                        metadata['line_count'] = sum(1 for _ in f)
+                except (UnicodeDecodeError, IOError):
+                    pass # Not a text file or unreadable
+                    
             except Exception as e:
                 click.echo(f"❌ Error getting local file metadata for {local_file_path}: {e}", err=True)
         

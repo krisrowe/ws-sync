@@ -11,6 +11,7 @@ setup(
     install_requires=[
         'Click',
         'PyYAML',
+        'rich',
         'google-cloud-secret-manager', # Runtime dependency for secrets commands
         'importlib-metadata; python_version < "3.10"',
     ],
