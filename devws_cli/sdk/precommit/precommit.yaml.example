@@ -1,0 +1,100 @@
+# Sensitive Patterns Configuration
+#
+# All patterns are checked identically across ALL git locations:
+# - File content (current and history)
+# - Filenames (current and history)
+# - Commit messages
+# - Branch names
+# - Tag names
+# - Stash entries
+# - Orphan/detached commits
+# - Reflog
+# - Git objects/pack files
+#
+# Pattern options:
+#   pattern: string to match (case-insensitive)
+#   category: for reporting/documentation only
+#   word_boundary: if true, only match as standalone word (default: false)
+#   not_followed_by: list of strings - pattern won't match if followed by these
+
+# =============================================================================
+# Dollar Amount Thresholds (configurable)
+# =============================================================================
+# IRS amounts (tax brackets, SS wage base) are hardcoded in the script.
+# These thresholds control what gets flagged as suspicious.
+
+thresholds:
+  large_amount: 300000          # Flag amounts >= this (default: $300k)
+  suspicious_nonround: 10000    # Flag non-round amounts >= this (default: $10k)
+  suspicious_any: 100000        # Flag any amount >= this regardless of rounding (default: $100k)
+  cents_review: 500             # Flag amounts with cents > this (default: $500)
+
+# Number format strictness:
+#   strict: true  = Only match $xxx,xxx.xx format (human-readable financial amounts)
+#   strict: false = Also match plain numbers like 450000 or $450000 (more aggressive)
+number_format_strict: true
+
+# Filesystem check scope:
+#   skip_gitignored: true  = Only check tracked + untracked-but-not-ignored files (uses git ls-files)
+#   skip_gitignored: false = Check ALL files including gitignored (current behavior)
+# Note: This ONLY affects local filesystem checks. Git history, reflog, orphan commits, etc. are always checked.
+skip_gitignored_filesystem: true
+
+# =============================================================================
+# String Patterns - TEMPLATE WITH GENERIC EXAMPLES
+# =============================================================================
+# 
+# IMPORTANT: This is a TEMPLATE with generic examples.
+# Users should customize this file with their own sensitive patterns.
+#
+# To customize:
+# 1. Copy this file to ~/.config/devws/patterns.yaml (or another location)
+# 2. Add your own patterns (names, employers, properties, etc.)
+# 3. Configure devws to use your custom file
+#
+# Examples below use obviously fake data to demonstrate the pattern format.
+
+patterns:
+  # --- Personal Names (EXAMPLES - replace with your own) ---
+  - pattern: "john smith"
+    category: "name"
+  - pattern: "jane doe"
+    category: "name"
+
+  # --- Employer Names (EXAMPLES - replace with your own) ---
+  - pattern: "acme corporation"
+    category: "employer"
+  - pattern: "company x"
+    category: "employer"
+  
+  # Example: Exclude technology product names from employer match
+  # - pattern: "google"
+  #   category: "employer"
+  #   not_followed_by:
+  #     - " cloud"
+  #     - " docs"
+  #     - " drive"
+  #     - "-generativeai"
+  #     - "apis.com"
+  #     - ".com"
+
+  # --- Usernames (EXAMPLES - replace with your own) ---
+  - pattern: "myusername"
+    category: "username"
+
+  # --- Financial Institutions (EXAMPLES - replace with your own) ---
+  - pattern: "first national bank"
+    category: "financial"
+
+  # --- Property Names (EXAMPLES - replace with your own) ---
+  - pattern: "property name"
+    category: "property"
+
+  # --- Employer-Specific Terms (EXAMPLES - replace with your own) ---
+  - pattern: "company bonus program"
+    category: "employer_term"
+  
+  # Example: Word boundary for acronyms
+  # - pattern: "ABC"
+  #   category: "employer_term"
+  #   word_boundary: true

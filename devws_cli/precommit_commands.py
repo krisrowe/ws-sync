@@ -1,17 +1,24 @@
 import click
-from devws_cli.precommit import run_precommit
+from devws_cli.sdk.precommit.scanner import main as run_scanner
 
 @click.command()
-@click.option('--verbose', '-v', is_flag=True, help='Show intentionally ignored false positives (e.g., author name in LICENSE).')
-def precommit(verbose):
+@click.argument('repo_path', type=click.Path(exists=True), default='.')
+def precommit(repo_path):
     """
-    Scans for sensitive information in the repository.
+    Scans a repository for sensitive information.
 
-    This command checks all tracked and untracked files for secrets,
-    API keys, and personal information based on your git config,
-    .env files, and custom patterns defined in the devws config.
-
-    Known false positives (like author names in LICENSE files) are
-    automatically suppressed. Use --verbose to see them.
+    Performs comprehensive checks including:
+    - Git history (commits, file content, filenames, commit messages)
+    - Detached/orphan commits and stash entries
+    - Branch and tag names
+    - Local filesystem (bypassing .gitignore)
+    - Dollar amounts (large, non-round, with cents)
+    
+    REPO_PATH: Path to repository to scan (default: current directory)
     """
-    run_precommit(verbose=verbose)
+    import sys
+    # scanner.main() uses argparse, so we need to set sys.argv
+    sys.argv = ['devws precommit', repo_path]
+    run_scanner()
+
+
