@@ -4,8 +4,8 @@ import os
 import shutil
 from pathlib import Path # Import Path
 from click.testing import CliRunner
-from devws_cli.cli import devws 
-from devws_cli.utils import GLOBAL_DEVWS_CONFIG_FILE, GLOBAL_DEVWS_CONFIG_DIR
+from devws.cli.main import devws 
+from devws.sdk.utils import GLOBAL_DEVWS_CONFIG_FILE, GLOBAL_DEVWS_CONFIG_DIR
 
 # Fixture to mock _run_command and isolate file system
 @pytest.fixture
@@ -31,8 +31,8 @@ def mock_setup_env(tmp_path):
 
     # Mock os.path.expanduser("~")
     with patch("os.path.expanduser", return_value=str(mock_home)), \
-         patch("devws_cli.utils.GLOBAL_DEVWS_CONFIG_DIR", new=str(mock_global_config_dir)), \
-         patch("devws_cli.utils.GLOBAL_DEVWS_CONFIG_FILE", new=str(mock_global_config_file)), \
+         patch("devws.sdk.utils.GLOBAL_DEVWS_CONFIG_DIR", new=str(mock_global_config_dir)), \
+         patch("devws.sdk.utils.GLOBAL_DEVWS_CONFIG_FILE", new=str(mock_global_config_file)), \
          patch("os.makedirs", wraps=os.makedirs) as mock_makedirs, \
          patch("os.chmod", wraps=os.chmod) as mock_chmod, \
          patch("subprocess.run") as mock_run:
@@ -53,10 +53,10 @@ def test_devws_setup_initial_run(mock_setup_env):
     # Setup the devws_cli path to be relative to where _load_global_config would find config.default.yaml
     devws_cli_path = tmp_path / "devws_cli_mock"
     devws_cli_path.mkdir()
-    shutil.copyfile("devws_cli/config.default.yaml", devws_cli_path / "config.default.yaml")
+    shutil.copyfile("devws/config.default.yaml", devws_cli_path / "config.default.yaml")
     
     # Instead of mocking os.path functions, mock the config loading directly
-    with patch("devws_cli.utils._load_global_config") as mock_load_config:
+    with patch("devws.sdk.utils._load_global_config") as mock_load_config:
         # Return a minimal config
         mock_load_config.return_value = (
             {
@@ -110,7 +110,7 @@ def test_devws_setup_with_existing_global_config(mock_setup_env):
     runner, mock_run, tmp_path, mock_home, mock_global_config_file, mock_makedirs, mock_chmod = mock_setup_env
 
     # Mock _load_global_config to return existing config
-    with patch("devws_cli.utils._load_global_config") as mock_load_config:
+    with patch("devws.sdk.utils._load_global_config") as mock_load_config:
         mock_load_config.return_value = (
             {
                 'gcs_profiles': {
@@ -152,7 +152,7 @@ def test_devws_setup_with_custom_component(mock_setup_env):
     runner, mock_run, tmp_path, mock_home, mock_global_config_file, mock_makedirs, mock_chmod = mock_setup_env
 
     # Mock _load_global_config
-    with patch("devws_cli.utils._load_global_config") as mock_load_config:
+    with patch("devws.sdk.utils._load_global_config") as mock_load_config:
         mock_load_config.return_value = (
             {
                 'gcs_profiles': {

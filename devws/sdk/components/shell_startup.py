@@ -1,6 +1,6 @@
 import click
 import os
-from devws_cli.utils import _log_step, _update_bashrc
+from devws.sdk.utils import _log_step, _update_bashrc
 
 def setup(config, dry_run=False):
     """

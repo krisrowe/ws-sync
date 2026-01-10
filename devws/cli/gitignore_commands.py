@@ -23,10 +23,9 @@ def status(ctx):
     from rich.table import Table
     from rich.panel import Panel
     
-    console = Console()
-    
     # 1. Load Template
-    template_path = Path(__file__).parent / 'resources' / 'global_gitignore'
+    # Move up one level from cli/ to devws/
+    template_path = Path(__file__).parent.parent / 'resources' / 'global_gitignore'
     if not template_path.exists():
          console.print(f"[bold red]Error:[/bold red] Template not found at {template_path}")
          sys.exit(1)
@@ -106,7 +105,7 @@ def apply(overwrite):
     """Apply standard global gitignore configuration."""
     
     # 1. Load Template
-    template_path = Path(__file__).parent / 'resources' / 'global_gitignore'
+    template_path = Path(__file__).parent.parent / 'resources' / 'global_gitignore'
     if not template_path.exists():
          click.echo(f"Error: Template not found at {template_path}", err=True)
          sys.exit(1)

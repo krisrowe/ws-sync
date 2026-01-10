@@ -9,7 +9,7 @@ import os
 
 import click
 
-from devws_cli.chromeos.shared_logic import check_pandoc_installed, check_google_chrome_installed, convert_md_to_html, open_file_in_chromeos_browser
+from devws.sdk.chromeos.shared_logic import check_pandoc_installed, check_google_chrome_installed, convert_md_to_html, open_file_in_chromeos_browser
 
 PROJECT_GEMINI_MD = Path.cwd() / "GEMINI.md"
 

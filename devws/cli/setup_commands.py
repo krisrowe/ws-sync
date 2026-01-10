@@ -5,7 +5,7 @@ import yaml
 import importlib
 import traceback
 
-from devws_cli.utils import (
+from devws.sdk.utils import (
     _log_step,
     _print_final_report,
     _load_config_from_repo,
@@ -15,8 +15,8 @@ from devws_cli.utils import (
     _run_command,  # Add missing import
     get_gcs_profile_config # New: Import get_gcs_profile_config
 )
-from devws_cli.gcs_manager import GCSManager # New: Import GCSManager
-from devws_cli.gcs_profile_manager import GCSProfileManager # New: Import GCSProfileManager
+from devws.sdk.gcs_manager import GCSManager # New: Import GCSManager
+from devws.sdk.gcs_profile_manager import GCSProfileManager # New: Import GCSProfileManager
 
 # --- Global Definitions ---
 REPO_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -128,7 +128,7 @@ def setup(force, config_path, project_id, bucket_name, profile, component, dry_r
             component_module = None
             try:
                 # Try importing as a built-in component
-                component_module = importlib.import_module(f"devws_cli.components.{comp_id}")
+                component_module = importlib.import_module(f"devws.sdk.components.{comp_id}")
             except ImportError:
                 try:
                     # If that fails, try importing from the custom components directory

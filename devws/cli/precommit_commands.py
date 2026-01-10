@@ -1,5 +1,5 @@
 import click
-from devws_cli.precommit import run_precommit
+from devws.cli.precommit import run_precommit
 
 @click.command()
 @click.option('--verbose', '-v', is_flag=True, help='Show intentionally ignored false positives (e.g., author name in LICENSE).')

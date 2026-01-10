@@ -1,7 +1,7 @@
 import click
 import os
 import sys
-from devws_cli.utils import _log_step, _run_command, _get_os_type
+from devws.sdk.utils import _log_step, _run_command, _get_os_type
 
 def setup(config, dry_run=False):
     """

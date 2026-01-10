@@ -1,7 +1,7 @@
 import click
 import sys
-from devws_cli.utils import _log_step, _load_global_config
-from devws_cli.gcs_profile_manager import GCSProfileManager  # Updated import
+from devws.sdk.utils import _log_step, _load_global_config
+from devws.sdk.gcs_profile_manager import GCSProfileManager  # Updated import
 
 def setup(config, dry_run=False):
     """

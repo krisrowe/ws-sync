@@ -1,14 +1,14 @@
 import click
 import sys
-from devws_cli.setup_commands import setup
-from devws_cli.local_commands import local
-from devws_cli.config_commands import config
-from devws_cli.secrets_commands import secrets
-from devws_cli.home_commands import home
-from devws_cli.precommit_commands import precommit
-from devws_cli.repo_commands import repo
-from devws_cli.chromeos.commands import chrome
-from devws_cli.gitignore_commands import gitignore
+from devws.cli.setup_commands import setup
+from devws.cli.local_commands import local
+from devws.cli.config_commands import config
+from devws.cli.secrets_commands import secrets
+from devws.cli.home_commands import home
+from devws.cli.precommit_commands import precommit
+from devws.cli.repo_commands import repo
+from devws.sdk.chromeos.commands import chrome
+from devws.cli.gitignore_commands import gitignore
 
 @click.group()
 def devws():

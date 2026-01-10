@@ -373,8 +373,10 @@ def _load_global_config(silent=False, debug=False):
     # Initialize with an empty dictionary for merging
     merged_config = {}
 
-    # --- 1. Load Base Config (from devws_cli/config.default.yaml) ---
-    base_config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config.default.yaml")
+    # --- 1. Load Base Config (from devws/config.default.yaml) ---
+    # Move up one level from sdk/ to devws/
+    package_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    base_config_path = os.path.join(package_root, "config.default.yaml")
     if os.path.exists(base_config_path):
         try:
             with open(base_config_path, 'r') as f:

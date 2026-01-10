@@ -1,7 +1,7 @@
 import click
 import os
 import glob # For file pattern matching
-from devws_cli.utils import _run_command
+from devws.sdk.utils import _run_command
 
 @click.group()
 def clean_group(): # Renamed to avoid conflict with 'clean' command

@@ -5,10 +5,11 @@ import subprocess
 import yaml # Added for loading patterns from YAML
 from pathlib import Path
 
-from devws_cli.utils import _run_command, _load_global_config
+from devws.sdk.utils import _run_command, _load_global_config
 
 # Path to the generic patterns file
-UNSAFE_PATTERNS_FILE = Path(__file__).parent / "unsafe-patterns.yaml"
+# Move up one level from cli/ to devws/
+UNSAFE_PATTERNS_FILE = Path(__file__).parent.parent / "unsafe-patterns.yaml"
 
 def load_generic_patterns():
     """Loads generic patterns from the unsafe-patterns.yaml file."""

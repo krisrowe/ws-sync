@@ -9,13 +9,13 @@ import json
 import subprocess
 from datetime import datetime
 
-from devws_cli.utils import (
+from devws.sdk.utils import (
     _run_command, _load_global_config, GLOBAL_DEVWS_CONFIG_FILE, get_git_repo_info, 
     get_gcs_profile_config, _get_file_hash, _get_gcs_file_status, 
     _get_local_file_status, _generate_ascii_table
 )
-from devws_cli.gcs_manager import GCSManager
-from devws_cli.gcs_profile_manager import GCSProfileManager
+from devws.sdk.gcs_manager import GCSManager
+from devws.sdk.gcs_profile_manager import GCSProfileManager
 
 WS_SYNC_FILE = ".ws-sync"
 

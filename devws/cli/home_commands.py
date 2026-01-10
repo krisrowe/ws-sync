@@ -2,10 +2,10 @@ import click
 import os
 import sys
 import shutil
-from devws_cli.backup import create_home_backup
-from devws_cli.utils import (_load_global_config, get_gcs_profile_config, _get_local_file_status, 
+from devws.cli.backup import create_home_backup
+from devws.sdk.utils import (_load_global_config, get_gcs_profile_config, _get_local_file_status, 
                              _get_gcs_file_status, _generate_ascii_table)
-from devws_cli.gcs_manager import GCSManager
+from devws.sdk.gcs_manager import GCSManager
 
 @click.group()
 def home():

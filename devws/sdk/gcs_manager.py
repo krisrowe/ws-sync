@@ -1,7 +1,7 @@
 import os
 import subprocess
 import click # For click.echo
-from devws_cli.utils import _run_command, get_git_repo_info # Import the moved utility
+from devws.sdk.utils import _run_command, get_git_repo_info # Import the moved utility
 
 class GCSManager:
     def __init__(self, bucket_name, profile_name='default'):

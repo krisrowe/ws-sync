@@ -2,8 +2,8 @@ import click
 import yaml
 import os
 import sys
-from devws_cli.utils import GLOBAL_DEVWS_CONFIG_FILE, _load_global_config, get_gcs_profile_config
-from devws_cli.gcs_manager import GCSManager
+from devws.sdk.utils import GLOBAL_DEVWS_CONFIG_FILE, _load_global_config, get_gcs_profile_config
+from devws.sdk.gcs_manager import GCSManager
 
 @click.group()
 def config():

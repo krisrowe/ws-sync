@@ -3,7 +3,7 @@ import json
 import yaml
 import subprocess
 import click # Import click for echo
-from devws_cli.utils import _run_command, _get_ws_sync_label_key, _load_global_config, GLOBAL_DEVWS_CONFIG_FILE
+from devws.sdk.utils import _run_command, _get_ws_sync_label_key, _load_global_config, GLOBAL_DEVWS_CONFIG_FILE
 
 class GCSProfileManager:
     def __init__(self, silent=False, debug=False):

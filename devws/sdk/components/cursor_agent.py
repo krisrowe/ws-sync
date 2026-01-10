@@ -1,5 +1,5 @@
 import click
-from devws_cli.utils import _log_step, _run_command
+from devws.sdk.utils import _log_step, _run_command
 import os # Added import for os
 
 def setup(config, dry_run=False):

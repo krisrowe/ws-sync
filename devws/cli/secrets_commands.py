@@ -6,7 +6,7 @@ try:
     HAS_SECRET_MANAGER = True
 except ImportError:
     HAS_SECRET_MANAGER = False
-from devws_cli.utils import _load_global_config, get_gcs_profile_config
+from devws.sdk.utils import _load_global_config, get_gcs_profile_config
 
 @click.group()
 def secrets():
