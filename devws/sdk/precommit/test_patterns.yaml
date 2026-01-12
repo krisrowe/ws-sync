@@ -1,0 +1,198 @@
+# Pattern definitions for secret detection testing
+# Each pattern serves dual purpose: matching AND example generation
+# Regex subset supported: literals, [charset], {n}, {n,m}, \d, \w
+
+seed: 42
+
+patterns:
+  # === SECRETS (expect: flag) ===
+
+  - id: github-pat
+    type: GitHub PAT
+    pattern: "ghp_[a-zA-Z0-9]{36}"
+    expect: flag
+    description: GitHub personal access token
+
+  - id: github-fine-grained
+    type: GitHub Fine-Grained
+    pattern: "github_pat_[a-zA-Z0-9]{22}_[a-zA-Z0-9]{59}"
+    expect: flag
+    description: GitHub fine-grained personal access token
+
+  - id: npm-token
+    type: NPM Token
+    pattern: "npm_[a-zA-Z0-9]{36}"
+    expect: flag
+    description: NPM publish token
+
+  - id: google-oauth-secret
+    type: Google OAuth Secret
+    pattern: "GOCSPX-[a-zA-Z0-9]{28}"
+    expect: flag
+    description: Google OAuth client secret
+
+  - id: firebase-key
+    type: Firebase Key
+    pattern: "AIzaSy[a-zA-Z0-9]{33}"
+    expect: flag
+    description: Firebase/Google API key
+
+  - id: slack-bot-token
+    type: Slack Bot Token
+    pattern: "xoxb-[0-9]{12}-[a-zA-Z0-9]{24}"
+    expect: flag
+    description: Slack bot token
+
+  - id: slack-user-token
+    type: Slack User Token
+    pattern: "xoxp-[0-9]{12}-[0-9]{12}-[a-zA-Z0-9]{24}"
+    expect: flag
+    description: Slack user token
+
+  - id: stripe-secret
+    type: Stripe Secret Key
+    pattern: "sk_live_[a-zA-Z0-9]{24}"
+    expect: flag
+    description: Stripe secret API key
+
+  - id: stripe-test
+    type: Stripe Test Key
+    pattern: "sk_test_[a-zA-Z0-9]{24}"
+    expect: flag
+    description: Stripe test API key
+
+  - id: drive-folder-id
+    type: Google Drive ID
+    pattern: "[0-9][a-zA-Z0-9]{32}"
+    expect: flag
+    description: Google Drive folder/file ID
+
+  - id: jwt-header
+    type: JWT Token
+    pattern: "eyJ[a-zA-Z0-9]{30,50}"
+    expect: flag
+    description: JWT token (header segment)
+
+  - id: base64-credential
+    type: Base64 Credential
+    pattern: "[a-zA-Z0-9+/]{40}="
+    expect: flag
+    description: Base64-encoded credential
+
+  - id: generic-api-key
+    type: Generic API Key
+    pattern: "[a-zA-Z]{2,4}_[a-zA-Z0-9]{32}"
+    expect: flag
+    description: Generic prefixed API key
+
+  - id: hex-token
+    type: Hex Token
+    pattern: "[a-f0-9]{40}"
+    expect: flag
+    description: 40-char hex token (like SHA1)
+
+  - id: openai-key
+    type: OpenAI Key
+    pattern: "sk-[a-zA-Z0-9]{48}"
+    expect: flag
+    description: OpenAI API key
+
+  # === NON-SECRETS (expect: pass) ===
+
+  # -- Pattern exceptions (all-alpha, snake_case, SCREAMING_CASE) --
+
+  - id: camelcase-class
+    type: CamelCase Class
+    pattern: "[A-Z][a-z]{5,10}[A-Z][a-z]{5,10}[A-Z][a-z]{5,10}"
+    expect: pass
+    description: Java/C# class name (all-alpha exception)
+
+  - id: camelcase-method
+    type: CamelCase Method
+    pattern: "[a-z]{3,8}[A-Z][a-z]{5,10}[A-Z][a-z]{5,10}"
+    expect: pass
+    description: camelCase method name (all-alpha exception)
+
+  - id: snake-function
+    type: Snake Function
+    pattern: "[a-z]{4,8}_[a-z]{4,8}_[a-z]{4,8}_[a-z]{4,8}"
+    expect: pass
+    description: Python function name (lower_snake exception)
+
+  - id: screaming-const
+    type: Screaming Const
+    pattern: "[A-Z]{4,8}_[A-Z]{4,8}_[A-Z]{4,8}_[A-Z]{4,8}"
+    expect: pass
+    description: SCREAMING_SNAKE constant (UPPER_SNAKE exception)
+
+  - id: english-word
+    type: English Word
+    pattern: "[a-z]{20,25}"
+    expect: pass
+    description: Long lowercase word (all-alpha exception)
+
+  # -- Low entropy or short strings --
+
+  - id: short-token
+    type: Short Token
+    pattern: "[a-zA-Z0-9]{8,12}"
+    expect: pass
+    description: Too short to flag (< 20 chars)
+
+  - id: uuid-underscore
+    type: UUID Underscore
+    pattern: "[0-9a-f]{8}_[0-9a-f]{4}_[0-9a-f]{4}_[0-9a-f]{4}_[0-9a-f]{12}"
+    expect: flag
+    description: UUID with underscores (want to catch these)
+
+  - id: module-path
+    type: Module Path
+    pattern: "[a-z]{3,6}.[a-z]{4,8}.[a-z]{6,10}.[a-z]{4,8}"
+    expect: pass
+    description: Java/Python module path (dots + lowercase)
+
+  - id: url-path
+    type: URL Path
+    pattern: "[a-z]{3}/[a-z]{2}/[a-z]{5,8}/[a-z]{6,10}/[a-z]{5,8}"
+    expect: pass
+    description: REST API path segments
+
+  - id: hungarian-var
+    type: Hungarian Variable
+    pattern: "[a-z]{3}[A-Z][a-z]{8,12}[A-Z][a-z]{5,8}"
+    expect: pass
+    description: Hungarian notation variable (all-alpha exception)
+
+  # === EDGE CASES (known limitations) ===
+
+  - id: aws-access-key
+    type: AWS Access Key
+    pattern: "AKIA[A-Z0-9]{16}"
+    expect: flag
+    description: AWS access key ID (may have low entropy due to limited charset)
+
+  # === SHORT STRINGS (testing min_len=8) ===
+
+  - id: short-var
+    type: Short Variable
+    pattern: "[a-z]{4,6}[A-Z][a-z]{2,4}"
+    expect: pass
+    description: Short camelCase variable (8-10 chars)
+
+  - id: short-const
+    type: Short Constant
+    pattern: "[A-Z]{3,4}_[A-Z]{3,4}"
+    expect: pass
+    description: Short SCREAMING constant (7-9 chars)
+
+  - id: short-func
+    type: Short Function
+    pattern: "[a-z]{3,4}_[a-z]{3,4}"
+    expect: pass
+    description: Short snake_case function (7-9 chars)
+
+  - id: short-mixed
+    type: Short Mixed
+    pattern: "[a-zA-Z0-9]{8,10}"
+    expect: pass
+    description: Short mixed alphanumeric (low entropy at 8 chars)
