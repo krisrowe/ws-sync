@@ -1,4 +1,6 @@
 """Precommit scanning - thin CLI wrapper around SDK."""
+import sys
+
 import click
 
 from devws.sdk.precommit import run_scan
@@ -50,3 +52,6 @@ def run_precommit(verbose=False):
         for f in ignored:
             click.echo(f"  {f['file']}:{f['line_num']} - {f['match_type']}")
         click.echo("-" * 50)
+
+    # Exit non-zero so CI/CD and wrapper tools detect failure
+    sys.exit(1)
