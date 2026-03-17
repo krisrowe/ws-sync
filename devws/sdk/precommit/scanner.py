@@ -84,8 +84,14 @@ def gather_dynamic_patterns(config: dict) -> Dict[str, str]:
     return patterns
 
 
-def get_files_to_scan() -> List[str]:
-    """Get list of all files to scan (tracked + untracked non-ignored)."""
+def get_files_to_scan(include_untracked: bool = False) -> List[str]:
+    """Get list of files to scan.
+
+    By default only tracked files are scanned — that's what a precommit
+    check cares about.  Untracked files are not staged and won't be in
+    the commit; scanning them is purely cautionary and must be opted into
+    with ``include_untracked=True``.
+    """
     files = set()
 
     # Tracked files
@@ -95,12 +101,13 @@ def get_files_to_scan() -> List[str]:
     except (subprocess.CalledProcessError, FileNotFoundError):
         return []
 
-    # Untracked files (not ignored)
-    try:
-        untracked = _run_command(['git', 'ls-files', '--others', '--exclude-standard', '-z'], capture_output=True).stdout
-        files.update(untracked.strip('\0').split('\0'))
-    except (subprocess.CalledProcessError, FileNotFoundError):
-        pass
+    # Untracked files (not ignored) — opt-in only
+    if include_untracked:
+        try:
+            untracked = _run_command(['git', 'ls-files', '--others', '--exclude-standard', '-z'], capture_output=True).stdout
+            files.update(untracked.strip('\0').split('\0'))
+        except (subprocess.CalledProcessError, FileNotFoundError):
+            pass
 
     files.discard('')
     return sorted(files)
@@ -131,7 +138,8 @@ def run_scan(
     entropy_enabled: bool = True,
     entropy_threshold: float = 4.2,
     entropy_min_len: int = 20,
-    allow_path_exception: bool = True
+    allow_path_exception: bool = True,
+    include_untracked: bool = False
 ) -> Dict[str, Any]:
     """
     Run precommit scan combining regex patterns and entropy detection.
@@ -158,7 +166,7 @@ def run_scan(
     all_patterns.update(dynamic_patterns)
 
     # Get files
-    files = get_files_to_scan()
+    files = get_files_to_scan(include_untracked=include_untracked)
     if not files:
         return {
             "findings": [],

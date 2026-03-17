@@ -6,8 +6,9 @@ from devws.cli.precommit import run_precommit
 
 @click.group(invoke_without_command=True)
 @click.option('--verbose', '-v', is_flag=True, help='Show ignored false positives.')
+@click.option('--untracked', is_flag=True, help='Also scan untracked files (off by default).')
 @click.pass_context
-def precommit(ctx, verbose):
+def precommit(ctx, verbose, untracked):
     """
     Scan for sensitive information in the repository.
 
@@ -16,7 +17,7 @@ def precommit(ctx, verbose):
     ctx.ensure_object(dict)
     ctx.obj['verbose'] = verbose
     if ctx.invoked_subcommand is None:
-        run_precommit(verbose=verbose)
+        run_precommit(verbose=verbose, include_untracked=untracked)
 
 
 @precommit.group()

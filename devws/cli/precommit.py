@@ -6,11 +6,11 @@ import click
 from devws.sdk.precommit import run_scan
 
 
-def run_precommit(verbose=False):
+def run_precommit(verbose=False, include_untracked=False):
     """Run precommit scan and display results."""
     click.echo("Scanning for sensitive data...")
 
-    result = run_scan(verbose=verbose)
+    result = run_scan(verbose=verbose, include_untracked=include_untracked)
 
     files_scanned = result["files_scanned"]
     findings = result["findings"]
